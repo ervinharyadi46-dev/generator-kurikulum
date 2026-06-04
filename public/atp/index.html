@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generator ATP - Kurikulum Merdeka</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; }
+        
+        /* Style Khusus Tabel Output agar Rapi saat Di-copy */
+        .atp-output-container {
+            font-family: 'Times New Roman', Times, serif;
+            color: #000;
+        }
+        .atp-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+        }
+        .atp-table th, .atp-table td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: justify;
+            vertical-align: top;
+            font-size: 12pt;
+        }
+        .atp-table th {
+            background-color: #f3f4f6;
+            font-weight: bold;
+            text-align: center;
+        }
+        .text-center-atp { text-align: center !important; }
+        .bg-gray-atp { background-color: #f3f4f6 !important; font-weight: bold; }
+
+        /* Loading Spinner */
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<!-- Body menggunakan Flexbox agar Footer selalu di bawah -->
+<body class="text-gray-800 flex flex-col min-h-screen">
+
+    <!-- HEADER -->
+    <header class="bg-blue-800 text-white p-5 shadow-lg">
+        <div class="container mx-auto flex flex-col md:flex-row justify-between items-center text-center md:text-left">
+            <div>
+                <h1 class="text-2xl font-bold tracking-wide"><i class="fas fa-layer-group mr-2"></i>Generator ATP</h1>
+                <p class="text-blue-200 text-sm mt-1">Alur Tujuan Pembelajaran - Kurikulum Merdeka</p>
+            </div>
+            <div class="mt-3 md:mt-0 bg-blue-900 px-4 py-1 rounded text-xs shadow-inner">
+                <i class="fas fa-shield-alt mr-1"></i> Standalone & Secure
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT (flex-grow agar mendorong footer ke bawah) -->
+    <main class="container mx-auto px-4 py-8 max-w-5xl flex-grow">
+        
+        <!-- FORM INPUT -->
+        <section class="bg-white rounded-xl shadow-md p-6 mb-8 border border-gray-200">
+            <h2 class="text-xl font-bold mb-5 text-gray-700 border-b pb-2 flex items-center">
+                <i class="fas fa-clipboard-list mr-2 text-blue-600"></i> Identitas & Kurikulum
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <!-- Baris 1 -->
+                <input type="text" id="sekolah" placeholder="Nama Satuan Pendidikan *" required class="border border-gray-300 p-3 rounded focus:ring-2 focus:ring-blue-500 outline-none transition">
+                <input type="text" id="mapel" placeholder="Mata Pelajaran *" required class="border border-gray-300 p-3 rounded focus:ring-2 focus:ring-blue-500 outline-none transition">
+                
+                <!-- Baris 2 -->
+                <input type="text" id="guru" placeholder="Nama Guru *" required class="border border-gray-300 p-3 rounded focus:ring-2 focus:ring-blue-500 outline-none transition">
+                <input type="text" id="nipGuru" placeholder="NIP Guru (18 Digit) *" required maxlength="18" pattern="\d{18}" class="border border-gray-300 p-3 rounded focus:ring-2 focus:ring-blue-500 outline-none transition">
+                
+                <!-- Baris 3 -->
+                <input type="text" id="kepsek" placeholder="Nama Kepala Sekolah *" required class="border border-gray-300 p-3 rounded focus:ring-2 focus:ring-blue-500 outline-none transition">
+                <input type="text" id="nipKepsek" placeholder="NIP Kepala Sekolah (18 Digit) *" required maxlength="18" pattern="\d{18}" class="border border-gray-300 p-3 rounded focus:ring-2 focus:ring-blue-500 outline-none transition">
+                
+                <!-- Baris 4 -->
+                <input type="text" id="tahun" placeholder="Tahun Pelajaran (2026/2027) *" required class="border border-gray-300 p-3 rounded focus:ring-2 focus:ring-blue-500 outline-none transition">
+                <select id="jenjang" required class="border border-gray-300 p-3 rounded focus:ring-2 focus:ring-blue-500 outline-none transition bg-white">
+                    <option value="">Pilih Jenjang Pendidikan</option>
+                    <option value="SD">SD</option>
+                    <option value="SMP">SMP</option>
+                    <option value="SMA">SMA</option>
+                    <option value="SMK">SMK</option>
+                </select>
+                
+                <!-- Baris 5 -->
+                <select id="fase" required class="border border-gray-300 p-3 rounded focus:ring-2 focus:ring-blue-500 outline-none transition bg-white">
+                    <option value="">Pilih Fase</option>
+                    <option value="A">Fase A</option>
+                    <option value="B">Fase B</option>
+                    <option value="C">Fase C</option>
+                    <option value="D">Fase D</option>
+                    <option value="E">Fase E</option>
+                    <option value="F">Fase F</option>
+                </select>
+                <input type="text" id="kelas" placeholder="Kelas (Contoh: VII / X) *" required class="border border-gray-300 p-3 rounded focus:ring-2 focus:ring-blue-500 outline-none transition">
+            </div>
+
+            <!-- Elemen Input Dinamis -->
+            <div class="mt-8 border-t pt-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-gray-700 flex items-center">
+                        <i class="fas fa-sitemap mr-2 text-blue-600"></i> Elemen & Capaian Pembelajaran
+                    </h2>
+                    <div class="flex items-center bg-gray-100 px-3 py-2 rounded border border-gray-300">
+                        <label class="text-sm font-semibold mr-2 text-gray-600">Jumlah Elemen:</label>
+                        <input type="number" id="jumlahElemen" value="1" min="1" max="8" class="w-16 text-center border rounded p-1 text-lg font-bold" onchange="buatInputElemen()">
+                    </div>
+                </div>
+                
+                <div id="wadahElemen" class="space-y-6">
+                    <!-- Input Elemen Muncul Di Sini -->
+                </div>
+            </div>
+
+            <!-- Tombol Generate -->
+            <button onclick="prosesGenerate()" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-4 rounded-xl mt-8 shadow-lg transition transform hover:-translate-y-1 flex justify-center items-center gap-2 text-lg">
+                <i class="fas fa-wand-magic-sparkles"></i> GENERATE ATP SEKARANG
+            </button>
+        </section>
+
+        <!-- HASIL OUTPUT -->
+        <section id="areaHasil" class="hidden animate-fade-in-up">
+            <div class="flex flex-wrap justify-end gap-4 mb-4">
+                <button onclick="salinKeGoogleDocs()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg shadow-md flex items-center gap-2 font-semibold transition">
+                    <i class="fas fa-copy"></i> Salin & Buka Google Docs
+                </button>
+                <button onclick="unduhDOC()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg shadow-md flex items-center gap-2 font-semibold transition">
+                    <i class="fas fa-file-word"></i> Unduh Dokumen Word
+                </button>
+            </div>
+            
+            <div class="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+                <h3 class="text-lg font-bold text-gray-500 mb-4 border-b pb-2">Preview Dokumen:</h3>
+                <!-- Container Output (Format Asli) -->
+                <div id="kontenDokumen" class="atp-output-container"></div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER APLIKASI (BARU DITAMBAHKAN) -->
+    <footer class="bg-gray-800 text-gray-300 py-6 border-t border-gray-700 mt-auto">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-sm font-semibold mb-1 text-white">
+                Copyright &copy; 2026 Ervin Rudi Haryadi
+            </p>
+            <p class="text-xs">
+                Pengawas SMK - Cabang Dinas Pendidikan Wilayah VII Provinsi Jawa Tengah
+            </p>
+        </div>
+    </footer>
+
+    <!-- LOADING OVERLAY -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-60 hidden z-50 flex justify-center items-center backdrop-blur-sm">
+        <div class="bg-white p-8 rounded-xl shadow-2xl text-center max-w-sm mx-4">
+            <div class="loading-spinner mx-auto mb-4"></div>
+            <h3 class="font-bold text-xl text-gray-800">AI Sedang Bekerja...</h3>
+            <p class="text-gray-500 text-sm mt-2" id="loadingText">Menyusun Tujuan Pembelajaran sesuai CP...</p>
+        </div>
+    </div>
+
+    <script>
+        // 1. FUNGSI BUAT INPUT ELEMEN DINAMIS
+        function buatInputElemen() {
+            const jml = parseInt(document.getElementById('jumlahElemen').value);
+            const wadah = document.getElementById('wadahElemen');
+            wadah.innerHTML = '';
+            
+            for(let i=1; i<=jml; i++) {
+                wadah.innerHTML += `
+                    <div class="bg-blue-50 p-5 rounded-lg border border-blue-200 shadow-sm relative">
+                        <div class="absolute top-0 right-0 bg-blue-600 text-white px-3 py-1 rounded-bl-lg rounded-tr-lg font-bold text-sm">Elemen ${i}</div>
+                        <div class="grid grid-cols-1 gap-4">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">Nama Elemen</label>
+                                <input type="text" id="namaElemen${i}" placeholder="Contoh: Mendengar-Memirsa" required class="border border-gray-300 p-2 rounded w-full focus:ring-2 focus:ring-blue-400 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">Capaian Pembelajaran (CP)</label>
+                                <textarea id="cpElemen${i}" placeholder="Salin CP lengkap dari dokumen kurikulum..." required class="border border-gray-300 p-2 rounded w-full h-24 focus:ring-2 focus:ring-blue-400 outline-none"></textarea>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1">Jumlah Pertemuan (Angka)</label>
+                                    <input type="number" id="pertemuan${i}" placeholder="Contoh: 8" min="1" required class="border border-gray-300 p-2 rounded w-full focus:ring-2 focus:ring-blue-400 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1">Jumlah JP (Contoh: 12 x 45 menit)</label>
+                                    <input type="text" id="jp${i}" placeholder="Contoh: 12 x 45 menit" required class="border border-gray-300 p-2 rounded w-full focus:ring-2 focus:ring-blue-400 outline-none">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // 2. FUNGSI PROSES GENERATE (UPDATED - Error Handling + Progress)
+        async function prosesGenerate() {
+            // --- VALIDASI KETAT ---
+            const requiredIds = ['sekolah','mapel','guru','nipGuru','kepsek','nipKepsek','tahun','jenjang','fase','kelas'];
+            for(let id of requiredIds) {
+                const el = document.getElementById(id);
+                if(!el.value.trim()) {
+                    el.focus();
+                    return alert(`⚠️ Field "${el.placeholder.replace(' *','')}" wajib diisi!`);
+                }
+            }
+
+            // Validasi NIP (18 Digit Angka)
+            const nipGuru = document.getElementById('nipGuru').value;
+            const nipKepsek = document.getElementById('nipKepsek').value;
+            if(!/^\d{18}$/.test(nipGuru)) return alert('⚠️ NIP Guru harus 18 digit angka!');
+            if(!/^\d{18}$/.test(nipKepsek)) return alert('⚠️ NIP Kepala Sekolah harus 18 digit angka!');
+
+            const jmlElemen = parseInt(document.getElementById('jumlahElemen').value);
+            if(jmlElemen < 1 || jmlElemen > 8) return alert('⚠️ Jumlah elemen harus antara 1-8.');
+
+            // Kumpulkan Data Elemen
+            const elemenList = [];
+            for(let i=1; i<=jmlElemen; i++) {
+                const nama = document.getElementById(`namaElemen${i}`).value;
+                const cp = document.getElementById(`cpElemen${i}`).value;
+                const pert = document.getElementById(`pertemuan${i}`).value;
+                const jp = document.getElementById(`jp${i}`).value;
+
+                if(!nama || !cp || !pert || !jp) return alert(`⚠️ Pastikan semua field di Elemen ${i} terisi lengkap.`);
+                
+                elemenList.push({
+                    nama: nama,
+                    cp: cp,
+                    pertemuan: parseInt(pert),
+                    jp: jp
+                });
+            }
+
+            // --- MULAI PROSES ---
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+            
+            // Data Payload
+            const identitas = {
+                sekolah: document.getElementById('sekolah').value,
+                mapel: document.getElementById('mapel').value,
+                guru: document.getElementById('guru').value,
+                nipGuru: nipGuru,
+                kepsek: document.getElementById('kepsek').value,
+                nipKepsek: nipKepsek,
+                tahun: document.getElementById('tahun').value,
+                jenjang: document.getElementById('jenjang').value,
+                fase: document.getElementById('fase').value,
+                kelas: document.getElementById('kelas').value
+            };
+
+            try {
+                // Update loading text dengan progress
+                document.getElementById('loadingText').innerText = 
+                    `Mengirim data ke AI... (Elemen 1 dari ${elemenList.length})`;
+                
+                // Fetch ke Backend - Endpoint: /api/atp
+                const response = await fetch('/api/atp', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ identitas, elemenList })
+                });
+
+                const result = await response.json();
+                
+                if(result.success) {
+                    document.getElementById('loadingText').innerText = "Menyusun Tabel ATP...";
+                    renderOutput(result.data, identitas);
+                    document.getElementById('areaHasil').classList.remove('hidden');
+                    
+                    setTimeout(() => {
+                        document.getElementById('areaHasil').scrollIntoView({ behavior: 'smooth' });
+                    }, 100);
+                } else {
+                    // Handle error spesifik
+                    if (result.message.includes('503')) {
+                        alert("⚠️  Server AI sedang sibuk.\n\nSilakan tunggu 1-2 menit lalu coba lagi.\nTips: Kurangi jumlah elemen atau coba di jam sepi (pagi/malam).");
+                    } else {
+                        alert("❌ Gagal Generate:\n" + result.message);
+                    }
+                }
+            } catch (error) {
+                console.error(error);
+                
+                // Error handling yang lebih baik
+                if (error.message.includes('503')) {
+                    alert("⚠️  Google AI Service Unavailable\n\nServer sedang overload. Silakan:\n1. Tunggu 2-3 menit\n2. Coba generate ulang\n3. Atau refresh halaman dan coba lagi");
+                } else {
+                    alert("❌ Error Koneksi.\nPastikan server berjalan dan internet lancar.\n\nDetail: " + error.message);
+                }
+            } finally {
+                document.getElementById('loadingOverlay').classList.add('hidden');
+            }
+        }
+
+        // 3. RENDER OUTPUT (Format Tabel Rapi)
+        function renderOutput(data, identitas) {
+            const container = document.getElementById('kontenDokumen');
+            
+            // Header Dokumen
+            let html = `
+                <div class="text-center mb-6">
+                    <h2 class="text-2xl font-bold uppercase mb-1">Alur Tujuan Pembelajaran (ATP)</h2>
+                    <p class="text-lg font-semibold">${identitas.sekolah}</p>
+                </div>
+
+                <!-- TABEL 1: IDENTITAS -->
+                <table class="atp-table">
+                    <tr>
+                        <td class="bg-gray-atp w-1/4">Nama Satuan Pendidikan</td>
+                        <td class="w-1/4">${identitas.sekolah}</td>
+                        <td class="bg-gray-atp w-1/4">Tahun Pelajaran</td>
+                        <td class="w-1/4">${identitas.tahun}</td>
+                    </tr>
+                    <tr>
+                        <td class="bg-gray-atp">Mata Pelajaran</td>
+                        <td>${identitas.mapel}</td>
+                        <td class="bg-gray-atp">Fase / Kelas</td>
+                        <td>${identitas.fase} / ${identitas.kelas}</td>
+                    </tr>
+                </table>
+
+                <!-- TABEL 2: ATP -->
+                <table class="atp-table">
+                    <thead>
+                        <tr>
+                            <th class="w-10 text-center-atp">No.</th>
+                            <th class="w-32 text-center-atp">Elemen</th>
+                            <th class="w-1/3 text-center-atp">Capaian Pembelajaran (CP)</th>
+                            <th class="w-1/3 text-center-atp">Tujuan Pembelajaran (TP)</th>
+                            <th class="w-16 text-center-atp">Pertemuan</th>
+                            <th class="w-24 text-center-atp">JP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            let noUrut = 1;
+            // Loop Data Elemen
+            data.forEach((item, index) => {
+                const tpList = item.tujuanPembelajaran || item.tp || [];
+                const rowCount = tpList.length > 0 ? tpList.length : 1;
+
+                tpList.forEach((tp, i) => {
+                    html += `<tr>
+                        ${i === 0 ? `<td class="text-center-atp font-bold" rowspan="${rowCount}">${noUrut}</td>` : ''}
+                        ${i === 0 ? `<td rowspan="${rowCount}">${item.elemen}</td>` : ''}
+                        ${i === 0 ? `<td rowspan="${rowCount}">${item.cp}</td>` : ''}
+                        <td>${tp.no}. ${tp.text}</td>
+                        ${i === 0 ? `<td class="text-center-atp" rowspan="${rowCount}">${item.jumlahPertemuan || item.pertemuan}</td>` : ''}
+                        ${i === 0 ? `<td class="text-center-atp" rowspan="${rowCount}">${item.jp}</td>` : ''}
+                    </tr>`;
+                });
+                
+                // Jika tidak ada TP (fallback kosong)
+                if (tpList.length === 0) {
+                     html += `<tr>
+                        <td class="text-center-atp font-bold">${noUrut}</td>
+                        <td>${item.elemen}</td>
+                        <td>${item.cp}</td>
+                        <td><em>Belum tersedia</em></td>
+                        <td class="text-center-atp">${item.jumlahPertemuan || item.pertemuan}</td>
+                        <td class="text-center-atp">${item.jp}</td>
+                    </tr>`;
+                }
+                
+                noUrut++;
+            });
+
+            html += `
+                    </tbody>
+                </table>
+
+                <!-- TANDA TANGAN -->
+                <div class="mt-12 flex justify-between text-sm px-4">
+                    <div class="text-center w-1/3">
+                        <p class="mb-20">Mengetahui,<br>Kepala Sekolah</p>
+                        <p class="font-bold underline decoration-2">${identitas.kepsek}</p>
+                        <p>NIP. ${identitas.nipKepsek}</p>
+                    </div>
+                    <div class="text-center w-1/3">
+                        <p class="mb-20">Guru Mata Pelajaran</p>
+                        <p class="font-bold underline decoration-2">${identitas.guru}</p>
+                        <p>NIP. ${identitas.nipGuru}</p>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        // 4. FITUR COPY KE GOOGLE DOCS (Preserve Format)
+        async function salinKeGoogleDocs() {
+            const content = document.getElementById('kontenDokumen');
+            
+            // Buat temporary container untuk styling copy
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content.innerHTML;
+            
+            // Pastikan inline style diterapkan agar Google Docs membaca format
+            tempDiv.querySelectorAll('table').forEach(t => {
+                t.style.borderCollapse = 'collapse';
+                t.style.width = '100%';
+                t.style.marginBottom = '20px';
+                t.style.fontFamily = 'Times New Roman, serif';
+            });
+            tempDiv.querySelectorAll('td, th').forEach(c => {
+                c.style.border = '1px solid #000';
+                c.style.padding = '8px';
+                c.style.verticalAlign = 'top';
+                c.style.textAlign = c.classList.contains('text-center-atp') ? 'center' : 'justify';
+                if(c.classList.contains('bg-gray-atp') || c.tagName === 'TH') c.style.backgroundColor = '#f3f4f6';
+            });
+
+            // Copy process
+            const range = document.createRange();
+            range.selectNode(tempDiv);
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+            
+            try {
+                document.execCommand('copy');
+                window.getSelection().removeAllRanges();
+                
+                // Buka Google Docs
+                window.open('https://docs.new', '_blank');
+                alert('✅ Berhasil Disalin!\n\nSilakan Paste (Ctrl+V) di Google Docs yang baru terbuka.\nTabel dan format akan tetap rapi.');
+            } catch (err) {
+                alert('Gagal copy otomatis. Silakan copy manual.');
+            }
+        }
+
+        // 5. FITUR UNDUH DOC
+        function unduhDOC() {
+            const content = document.getElementById('kontenDokumen').innerHTML;
+            const htmlFull = `
+                <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+                <head>
+                    <meta charset='utf-8'>
+                    <style>
+                        body { font-family: 'Times New Roman', serif; }
+                        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+                        td, th { border: 1px solid #000; padding: 8px; vertical-align: top; text-align: justify; }
+                        th { background-color: #f3f4f6; text-align: center; }
+                        .text-center-atp { text-align: center; }
+                        .bg-gray-atp { background-color: #f3f4f6; font-weight: bold; }
+                        .font-bold { font-weight: bold; }
+                        .underline { text-decoration: underline; }
+                        .text-2xl { font-size: 24pt; }
+                        .text-lg { font-size: 18pt; }
+                        .text-sm { font-size: 12pt; }
+                        .mb-20 { margin-bottom: 80pt; }
+                        .mt-12 { margin-top: 48pt; }
+                        .flex { display: flex; }
+                        .justify-between { justify-content: space-between; }
+                        .px-4 { padding-left: 16px; padding-right: 16px; }
+                        .w-1\\/3 { width: 33%; }
+                        .text-center { text-align: center; }
+                    </style>
+                </head>
+                <body>${content}</body>
+                </html>`;
+            
+            const blob = new Blob([htmlFull], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ATP_${document.getElementById('mapel').value}_${document.getElementById('kelas').value}.doc`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // Jalankan saat load
+        buatInputElemen();
+    </script>
+</body>
+</html>

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generator RPM - Kurikulum Merdeka</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f8fafc; }
+        .rpm-table td, .rpm-table th { border: 1px solid #000; padding: 8px; vertical-align: top; text-align: justify; }
+        .rpm-table th { background: #f3f4f6; font-weight: bold; }
+        .loading { border: 4px solid #f3f3f3; border-top: 4px solid #10b981; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Styling untuk materi bahan ajar */
+.materi-container {
+    line-height: 1.8;
+    text-align: justify;
+}
+
+.materi-container h3 {
+    font-size: 14pt;
+    font-weight: bold;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    color: #1e40af;
+    border-bottom: 2px solid #3b82f6;
+    padding-bottom: 5px;
+}
+
+.materi-container h3:first-child {
+    margin-top: 0;
+}
+
+.materi-container p {
+    margin-bottom: 12px;
+    text-align: justify;
+    line-height: 1.8;
+}
+
+.materi-container ul, .materi-container ol {
+    margin-left: 25px;
+    margin-bottom: 12px;
+}
+
+.materi-container li {
+    margin-bottom: 8px;
+    text-align: justify;
+    line-height: 1.6;
+}
+
+.materi-container strong {
+    color: #1e40af;
+    font-weight: bold;
+}
+
+.materi-container br {
+    margin-bottom: 8px;
+}
+    </style>
+</head>
+<body class="text-gray-800 flex flex-col min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-green-700 text-white p-4 shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold"><i class="fas fa-book-open mr-2"></i>Generator RPM</h1>
+            <a href="/" class="text-sm bg-green-800 px-3 py-1 rounded hover:bg-green-900"><i class="fas fa-home"></i> Dashboard</a>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-6 max-w-5xl flex-grow">
+        <section class="bg-white p-6 rounded-xl shadow-md mb-6">
+            <h2 class="text-lg font-bold mb-4 text-green-700 border-b pb-2">Input Data RPM</h2>
+            <form id="rpmForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Identitas -->
+                <input type="text" id="sekolah" placeholder="Nama Satuan Pendidikan *" required class="border p-2 rounded">
+                <input type="text" id="mapel" placeholder="Mata Pelajaran *" required class="border p-2 rounded">
+                <input type="text" id="guru" placeholder="Nama Guru *" required class="border p-2 rounded">
+                <input type="text" id="nipGuru" placeholder="NIP Guru (18 digit) *" required maxlength="18" pattern="\d{18}" class="border p-2 rounded">
+                <input type="text" id="kepsek" placeholder="Nama Kepala Sekolah *" required class="border p-2 rounded">
+                <input type="text" id="nipKepsek" placeholder="NIP Kepala Sekolah (18 digit) *" required maxlength="18" pattern="\d{18}" class="border p-2 rounded">
+                
+                <!-- Kurikulum -->
+                <select id="jenjang" required class="border p-2 rounded">
+                    <option value="">Pilih Jenjang</option>
+                    <option value="SD">SD</option><option value="SMP">SMP</option>
+                    <option value="SMA">SMA</option><option value="SMK">SMK</option>
+                </select>
+                <input type="text" id="kelas" placeholder="Kelas/Semester *" required class="border p-2 rounded">
+                <select id="fase" required class="border p-2 rounded">
+                    <option value="">Pilih Fase</option>
+                    <option value="A">Fase A</option><option value="B">Fase B</option>
+                    <option value="C">Fase C</option><option value="D">Fase D</option>
+                    <option value="E">Fase E</option><option value="F">Fase F</option>
+                </select>
+                <input type="text" id="tahun" placeholder="Tahun Pelajaran *" required class="border p-2 rounded">
+                <textarea id="cp" placeholder="Capaian Pembelajaran (CP) *" required class="border p-2 rounded h-16 md:col-span-2"></textarea>
+                <textarea id="tp" placeholder="Tujuan Pembelajaran (TP) *" required class="border p-2 rounded h-16 md:col-span-2"></textarea>
+                <textarea id="materi" placeholder="Materi Pelajaran *" required class="border p-2 rounded h-16 md:col-span-2"></textarea>
+                
+                <!-- Pertemuan & Dimensi -->
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-bold mb-1">Jumlah Pertemuan & Durasi</label>
+                    <div class="flex gap-2">
+                        <input type="number" id="jmlPertemuan" placeholder="Jumlah" required class="border p-2 rounded w-1/3">
+                        <input type="text" id="durasi" placeholder="Durasi (cth: 2 × 35 menit)" required class="border p-2 rounded w-2/3">
+                    </div>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-bold mb-1">Praktik Pedagogis per Pertemuan</label>
+                    <div id="praktikContainer" class="space-y-2"></div>
+                    <button type="button" onclick="addPraktikField()" class="text-sm text-green-600 mt-1 hover:underline">+ Tambah Praktik</button>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-bold mb-1">Dimensi Profil Lulusan (Pilih beberapa)</label>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                        <label><input type="checkbox" name="dimensi" value="Keimanan & Ketakwaan" class="mr-1"> Keimanan & Ketakwaan</label>
+                        <label><input type="checkbox" name="dimensi" value="Kewargaan" class="mr-1"> Kewargaan</label>
+                        <label><input type="checkbox" name="dimensi" value="Penalaran Kritis" class="mr-1"> Penalaran Kritis</label>
+                        <label><input type="checkbox" name="dimensi" value="Kreativitas" class="mr-1"> Kreativitas</label>
+                        <label><input type="checkbox" name="dimensi" value="Kolaborasi" class="mr-1"> Kolaborasi</label>
+                        <label><input type="checkbox" name="dimensi" value="Kemandirian" class="mr-1"> Kemandirian</label>
+                        <label><input type="checkbox" name="dimensi" value="Kesehatan" class="mr-1"> Kesehatan</label>
+                        <label><input type="checkbox" name="dimensi" value="Komunikasi" class="mr-1"> Komunikasi</label>
+                    </div>
+                </div>
+                <button type="submit" class="md:col-span-2 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow mt-2">
+                    <i class="fas fa-wand-magic-sparkles"></i> GENERATE RPM SEKARANG
+                </button>
+            </form>
+        </section>
+
+        <section id="resultArea" class="hidden">
+            <div class="flex justify-end gap-3 mb-4">
+                <button onclick="copyToDocs()" class="bg-blue-600 text-white px-4 py-2 rounded shadow flex items-center gap-2"><i class="fas fa-copy"></i> Salin & Buka Google Docs</button>
+                <button onclick="downloadDOC()" class="bg-gray-600 text-white px-4 py-2 rounded shadow flex items-center gap-2"><i class="fas fa-file-word"></i> Unduh DOC</button>
+            </div>
+            <div id="rpmOutput" class="bg-white p-8 shadow-lg rounded-xl border min-h-[800px] rpm-table"></div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-gray-300 py-4 text-center text-xs mt-auto">
+        <p class="font-semibold">Copyright © 2026 Ervin Rudi Haryadi</p>
+        <p>Pengawas SMK - Cabang Dinas Pendidikan Wilayah VII Provinsi Jawa Tengah</p>
+    </footer>
+
+    <!-- Loading -->
+    <div id="loading" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex justify-center items-center">
+        <div class="bg-white p-6 rounded-xl text-center">
+            <div class="loading mx-auto mb-3"></div>
+            <p class="font-bold">AI Menyusun RPM...</p>
+        </div>
+    </div>
+
+    <script>
+        function addPraktikField() {
+            const container = document.getElementById('praktikContainer');
+            const count = container.children.length + 1;
+            container.innerHTML += `
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold w-24">Pertemuan ${count}:</span>
+                    <select class="border p-2 rounded w-full praktik-select">
+                        <option>Inkuiri-Discovery</option><option>Project Based Learning (PjBL)</option>
+                        <option>Problem Based Learning (PBL)</option><option>Product Based Learning</option>
+                        <option>Teaching Factory (TeFa)</option><option>Game Based Learning</option>
+                        <option>Station Learning</option>
+                    </select>
+                </div>`;
+        }
+        addPraktikField(); // Default 1
+
+        document.getElementById('rpmForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            document.getElementById('loading').classList.remove('hidden');
+
+            const praktik = Array.from(document.querySelectorAll('.praktik-select')).map(s => s.value);
+            const dimensi = Array.from(document.querySelectorAll('input[name="dimensi"]:checked')).map(c => c.value);
+
+            const data = {
+                identitas: {
+                    sekolah: document.getElementById('sekolah').value,
+                    mapel: document.getElementById('mapel').value,
+                    guru: document.getElementById('guru').value,
+                    nipGuru: document.getElementById('nipGuru').value,
+                    kepsek: document.getElementById('kepsek').value,
+                    nipKepsek: document.getElementById('nipKepsek').value,
+                    jenjang: document.getElementById('jenjang').value,
+                    kelas: document.getElementById('kelas').value,
+                    fase: document.getElementById('fase').value,
+                    tahun: document.getElementById('tahun').value,
+                    cp: document.getElementById('cp').value,
+                    tp: document.getElementById('tp').value,
+                    materi: document.getElementById('materi').value,
+                    jmlPertemuan: document.getElementById('jmlPertemuan').value,
+                    durasi: document.getElementById('durasi').value
+                },
+                praktikList: praktik,
+                dimensiList: dimensi
+            };
+
+            try {
+                const res = await fetch('/api/rpm', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                const json = await res.json();
+                if(json.success) {
+                    renderRPM(json.data, data.identitas);
+                    document.getElementById('resultArea').classList.remove('hidden');
+                    window.scrollTo(0, document.body.scrollHeight);
+                } else alert('Gagal: ' + json.message);
+            } catch(err) {
+                alert('Error koneksi. Cek terminal server.');
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
+            }
+        });
+
+        function renderRPM(data, idt) {
+            const out = document.getElementById('rpmOutput');
+            const praktikHTML = (data.desain?.praktik_pedagogis || []).map((p,i) => `<tr><td class="text-center">${i+1}</td><td>${p}</td></tr>`).join('') || 
+                (data.praktikList?.map((p,i) => `<tr><td class="text-center">${i+1}</td><td>${p}</td></tr>`).join('') || '<tr><td colspan="2" class="text-center">-</td></tr>');
+            
+            const kisiHTML = (data.lampiran?.kisi_kisi || []).map(k => 
+                `<tr><td class="text-center">${k.no}</td><td>${k.tp}</td><td>${k.indikator}</td><td class="text-center">${k.level}</td><td class="text-center">${k.nomor}</td></tr>`
+            ).join('') || '<tr><td colspan="5" class="text-center">Kisi-kisi akan digenerate oleh AI</td></tr>';
+
+            const dimensiText = idt.dimensiList?.join(', ') || '-';
+
+            out.innerHTML = `
+                <h2 class="text-center font-bold text-lg uppercase mb-4">Rencana Pembelajaran Mendalam (RPM)</h2>
+                
+                <table class="w-full mb-4 rpm-table text-sm">
+                    <tr><th class="w-1/3">Nama Satuan Pendidikan</th><td>${idt.sekolah}</td><th class="w-1/4">Tahun Pelajaran</th><td>${idt.tahun}</td></tr>
+                    <tr><th>Mata Pelajaran</th><td>${idt.mapel}</td><th>Kelas/Semester</th><td>${idt.kelas}</td></tr>
+                    <tr><th>Durasi Pertemuan</th><td colspan="3">${idt.durasi} × ${idt.jmlPertemuan} pertemuan</td></tr>
+                </table>
+
+                <h3 class="font-bold mt-4 mb-2">2. Identifikasi</h3>
+                <table class="w-full mb-4 rpm-table text-sm">
+                    <tr><th class="w-1/3">Karakteristik Murid</th><td>${data.identifikasi?.murid || '-'}</td></tr>
+                    <tr><th>Materi Pelajaran</th><td>${idt.materi}</td></tr>
+                    <tr><th>Capaian Dimensi Lulusan</th><td>${dimensiText}</td></tr>
+                </table>
+
+                <h3 class="font-bold mt-4 mb-2">3. Desain Pembelajaran</h3>
+                <table class="w-full mb-4 rpm-table text-sm">
+                    <tr><th class="w-1/3">Capaian Pembelajaran</th><td>${idt.cp}</td></tr>
+                    <tr><th>Lintas Disiplin Ilmu</th><td>${data.identifikasi?.lintas_disiplin || '-'}</td></tr>
+                    <tr><th>Tujuan Pembelajaran</th><td>${idt.tp}</td></tr>
+                    <tr><th>Topik Pembelajaran</th><td>${data.identifikasi?.topik || '-'}</td></tr>
+                    <tr><th>Kemitraan Pembelajaran</th><td>${data.desain?.kemitraan || '-'}</td></tr>
+                    <tr><th>Lingkungan Pembelajaran</th><td>${data.desain?.lingkungan || '-'}</td></tr>
+                    <tr><th>Pemanfaatan Digital</th><td>${data.desain?.digital || '-'}</td></tr>
+                </table>
+
+                <h3 class="font-bold mt-4 mb-2">Praktik Pedagogis per Pertemuan</h3>
+                <table class="w-full mb-4 rpm-table text-sm">
+                    <thead><tr><th class="w-16 text-center">No</th><th>Model/Praktik</th></tr></thead>
+                    <tbody>${praktikHTML}</tbody>
+                </table>
+
+                <h3 class="font-bold mt-4 mb-2">4. Pengalaman Belajar</h3>
+                <table class="w-full mb-4 rpm-table text-sm">
+                    <tr><th class="w-1/3">Memahami (Kegiatan Awal)</th><td>${data.pengalaman?.memahami || '-'}</td></tr>
+                    <tr><th>Mengaplikasi (Kegiatan Inti)</th><td>${data.pengalaman?.mengaplikasi || '-'}</td></tr>
+                    <tr><th>Refleksi (Kegiatan Penutup)</th><td>${data.pengalaman?.refleksi || '-'}</td></tr>
+                </table>
+
+                <h3 class="font-bold mt-4 mb-2">5. Asesmen Pembelajaran</h3>
+                <table class="w-full mb-4 rpm-table text-sm">
+                    <tr><th class="w-1/3">Asesmen Awal</th><td>${data.asesmen?.awal || '-'}</td></tr>
+                    <tr><th>Asesmen Proses</th><td>${data.asesmen?.proses || '-'}</td></tr>
+                    <tr><th>Asesmen Akhir</th><td>${data.asesmen?.akhir || '-'}</td></tr>
+                </table>
+
+                <div class="mt-8 flex justify-between text-sm px-4">
+                    <div class="text-center w-1/3">
+                        <p class="mb-16">Mengetahui,<br>Kepala Sekolah</p>
+                        <p class="font-bold underline">${idt.kepsek}</p>
+                        <p>NIP. ${idt.nipKepsek}</p>
+                    </div>
+                    <div class="text-center w-1/3">
+                        <p class="mb-16">Guru Mata Pelajaran</p>
+                        <p class="font-bold underline">${idt.guru}</p>
+                        <p>NIP. ${idt.nipGuru}</p>
+                    </div>
+                </div>
+
+                <h3 class="font-bold mt-8 mb-2 border-t pt-4">Lampiran 1: Materi Bahan Ajar</h3>
+<div class="rpm-table p-4 text-sm mb-4 materi-container">${data.lampiran?.materi || '<p class="text-gray-500">Materi akan digenerate oleh AI</p>'}</div>
+
+                <h3 class="font-bold mt-4 mb-2">Lampiran 2: Kisi-Kisi & Asesmen</h3>
+                <table class="w-full mb-4 rpm-table text-sm">
+                    <thead><tr><th>No</th><th>TP</th><th>Indikator Soal</th><th class="text-center">Level</th><th>No Soal</th></tr></thead>
+                    <tbody>${kisiHTML}</tbody>
+                </table>
+                <div class="rpm-table p-4 text-sm mb-2"><strong>Kunci Jawaban:</strong><br>${data.lampiran?.kunci || '-'}</div>
+                <div class="rpm-table p-4 text-sm"><strong>Rubrik Penilaian:</strong><br>${data.lampiran?.rubrik || '-'}</div>
+            `;
+        }
+
+        async function copyToDocs() {
+            const content = document.getElementById('rpmOutput').innerText;
+            await navigator.clipboard.writeText(content);
+            window.open('https://docs.new', '_blank');
+            alert('✅ Disalin! Paste di Google Docs.');
+        }
+
+        function downloadDOC() {
+            const html = document.getElementById('rpmOutput').innerHTML;
+            const blob = new Blob([`<html><head><style>.rpm-table td,.rpm-table th{border:1px solid #000;padding:6px;text-align:justify;vertical-align:top;}.rpm-table th{background:#f3f4f6;font-weight:bold;}</style></head><body>${html}</body></html>`], {type:'application/msword'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'RPM_Kurikulum_Merdeka.doc'; a.click();
+        }
+    </script>
+</body>
+</html>
