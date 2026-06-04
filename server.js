@@ -192,12 +192,13 @@ app.get('/api/status', (req,res)=>res.json({status:'ok',model: MODEL_NAME}));
 // ========================================
 // 🔹 START SERVER
 // ========================================
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3001;//
 app.get('/atp', (req, res) => res.sendFile(path.join(__dirname, 'public', 'atp', 'index.html')));
 app.get('/rpm', (req, res) => res.sendFile(path.join(__dirname, 'public', 'rpm', 'index.html')));
 
-app.listen(PORT, ()=>{
-    console.log(`\n🚀 Server Kurikulum: http://localhost:${PORT}`);
-    console.log(`📚 Model: ${MODEL_NAME}`);
-    console.log(`🔗 Endpoints: /api/atp, /api/rpm, /api/status\n`);
-});
+app.listen(PORT, ()=>{//
+    console.log(`\n🚀 Server Kurikulum: http://localhost:${PORT}`);//
+    console.log(`📚 Model: ${MODEL_NAME}`);//
+    console.log(`🔗 Endpoints: /api/atp, /api/rpm, /api/status\n`);//
+});//
+module.exports = app;
