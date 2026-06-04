@@ -110,75 +110,37 @@ OUTPUT HANYA JSON murni dengan struktur PERSIS ini:
 {
   "identifikasi": {
     "murid": "Deskripsi karakteristik murid...",
-    "lintas_disiplin": "Mata pelajaran lain yang relevan...",
-    "topik": "Topik pembelajaran spesifik..."
+    "lintas_disiplin": "Mapel lain yang relevan...",
+    "topik": "Topik pembelajaran..."
   },
   "desain": {
     "kemitraan": "Rekomendasi kemitraan...",
     "lingkungan": "Deskripsi lingkungan...",
-    "digital": "Rekomendasi tools digital..."
+    "digital": "Tools: Canva, Kahoot, Quizizz, dll..."
   },
   "pengalaman": {
-    "memahami": "Langkah kegiatan awal...",
-    "mengaplikasi": "Langkah kegiatan inti...",
-    "refleksi": "Langkah kegiatan penutup..."
+    "memahami": "Kegiatan awal...",
+    "mengaplikasi": "Kegiatan inti...",
+    "refleksi": "Kegiatan penutup..."
   },
   "asesmen": {
-    "awal": "Teknik asesmen diagnostik...",
-    "proses": "Teknik observasi...",
-    "akhir": "Teknik produk..."
+    "awal": "Asesmen diagnostik...",
+    "proses": "Observasi...",
+    "akhir": "Produk/tugas..."
   },
   "lampiran": {
-    "materi": "Materi bahan ajar yang TERSTRUKTUR dengan format HTML sederhana. Gunakan tag <h3> untuk judul sub-bab, <p> untuk paragraf, <ul><li> untuk list, dan <br> untuk line break. Contoh format:\\n<h3>A. Pengertian Desain</h3>\\n<p>Desain adalah proses...</p>\\n<h3>B. Prinsip Dasar</h3>\\n<p>Prinsip desain meliputi:</p>\\n<ul>\\n<li>Kesatuan (Unity)</li>\\n<li>Keseimbangan (Balance)</li>\\n</ul>",
-    "kisi_kisi": [
-      {"no":1,"tp":"Tujuan Pembelajaran 1","indikator":"Indikator soal...","level":"L1","nomor":"1-3"},
-      {"no":2,"tp":"Tujuan Pembelajaran 2","indikator":"Indikator soal...","level":"L2","nomor":"4-6"},
-      {"no":3,"tp":"Tujuan Pembelajaran 3","indikator":"Indikator soal...","level":"L3","nomor":"7-8"}
-    ],
-    "kunci": "Kunci jawaban terstruktur per nomor",
-    "rubrik": "Rubrik penilaian terstruktur per aspek"
+    "materi": "<h3>A. Pengertian [Topik]</h3><p>Penjelasan paragraf pertama...</p><p>Penjelasan paragraf kedua...</p><h3>B. Prinsip Dasar</h3><p>Penjelasan...</p><ul><li>Poin 1</li><li>Poin 2</li></ul><h3>C. Langkah Implementasi</h3><p>Penjelasan...</p>",
+    "kisi_kisi": [{"no":1,"tp":"TP 1","indikator":"Indikator...","level":"L1","nomor":"1-3"}],
+    "kunci": "1. Jawaban A\\n2. Jawaban B",
+    "rubrik": "Aspek Pemahaman:\\n- Skor 4: Sangat baik\\n- Skor 3: Baik"
   }
 }
 
 ATURAN PENTING:
-1. Bahasa Indonesia baku (EYD V)
-2. Materi bahan ajar HARUS terstruktur dengan sub-bab jelas (minimal 3 sub-bab: A, B, C)
-3. Gunakan format HTML sederhana dalam string: <h3>, <p>, <ul>, <li>, <br>
-4. JANGAN gunakan markdown (** atau ##) - gunakan HTML tags
-5. Output HANYA JSON, tanpa \`\`\`json wrapper`;
-
-        let attempts = 0, result, lastError;
-        while (attempts < 3) {
-            try { 
-                result = await model.generateContent({
-                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                    generationConfig: { 
-                        temperature: 0.7, 
-                        maxOutputTokens: 8192,
-                        responseMimeType: "application/json"
-                    }
-                });
-                break; 
-            }
-            catch (err) { 
-                lastError = err;
-                attempts++; 
-                console.error(`[RPM] Percobaan ${attempts} gagal:`, err.message);
-                await new Promise(r => setTimeout(r, 3000 * attempts)); 
-            }
-        }
-        
-        if (!result) throw new Error(`AI error: ${lastError?.message || 'Gagal merespons'}`);
-
-        const raw = result.response.text();
-        const rpmData = JSON.parse(raw);
-
-        res.json({ success: true, data: rpmData });
-    } catch (e) {
-        console.error('❌ RPM Error:', e.message);
-        res.status(500).json({ success: false, message: e.message });
-    }
-});
+1. Untuk field "materi" di lampiran, WAJIB gunakan HTML tags: <h3> untuk judul sub-bab, <p> untuk paragraf, <ul><li> untuk list
+2. JANGAN gunakan markdown (** atau ##)
+3. Materi harus terstruktur minimal 3 sub-bab (A, B, C)
+4. Output HANYA JSON tanpa \`\`\` wrapper`;
 
 // Fallback untuk ATP
 function fallbackTP(elemenNama, fase) {
