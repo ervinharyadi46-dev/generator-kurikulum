@@ -19,7 +19,7 @@ if (!apiKey) {
 }
 console.log('🔑 API Key terdeteksi');
 
-const MODEL_NAME = 'gemini-2.5-flash';
+const MODEL_NAME = 'gemini-1.5-flash';
 const genAI = new GoogleGenerativeAI(apiKey);
 const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 console.log(`📚 Model: ${MODEL_NAME}`);
