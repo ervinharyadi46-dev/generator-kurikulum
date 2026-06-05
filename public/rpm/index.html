@@ -8,10 +8,108 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f8fafc; }
-        .rpm-table td, .rpm-table th { border: 1px solid #000; padding: 8px; vertical-align: top; text-align: justify; }
-        .rpm-table th { background: #f3f4f6; font-weight: bold; }
-        .loading { border: 4px solid #f3f3f3; border-top: 4px solid #10b981; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Styling tabel RPM */
+        .rpm-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .rpm-table td, .rpm-table th { 
+            border: 1px solid #000; 
+            padding: 10px; 
+            vertical-align: top; 
+            text-align: justify;
+            font-size: 11pt;
+        }
+        .rpm-table th { 
+            background: #f3f4f6; 
+            font-weight: bold;
+            width: 30%;
+        }
+        
+        /* Styling heading */
+        .rpm-heading {
+            font-size: 12pt;
+            font-weight: bold;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            color: #1e40af;
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 5px;
+        }
+        
+        /* Styling materi bahan ajar */
+        .materi-container {
+            line-height: 1.8;
+            text-align: justify;
+            font-family: 'Times New Roman', serif;
+            font-size: 11pt;
+            padding: 15px;
+            border: 1px solid #000;
+            margin-bottom: 20px;
+        }
+        
+        .materi-container h3 {
+            font-size: 12pt;
+            font-weight: bold;
+            margin-top: 15px;
+            margin-bottom: 10px;
+            color: #000;
+            border-bottom: 1px solid #000;
+            padding-bottom: 5px;
+        }
+        
+        .materi-container h3:first-child {
+            margin-top: 0;
+        }
+        
+        .materi-container p {
+            margin-bottom: 10px;
+            text-align: justify;
+            line-height: 1.8;
+        }
+        
+        .materi-container ul, .materi-container ol {
+            margin-left: 25px;
+            margin-bottom: 10px;
+            padding-left: 10px;
+        }
+        
+        .materi-container li {
+            margin-bottom: 8px;
+            text-align: justify;
+            line-height: 1.6;
+        }
+        
+        .materi-container strong {
+            color: #1e40af;
+            font-weight: bold;
+        }
+        
+        /* Loading animation */
+        .loading { 
+            border: 4px solid #f3f3f3; 
+            border-top: 4px solid #10b981; 
+            border-radius: 50%; 
+            width: 40px; 
+            height: 40px; 
+            animation: spin 1s linear infinite; 
+        }
+        @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+        }
+        
+        /* Tanda tangan */
+        .signature-box {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .signature-box p {
+            margin-bottom: 50px;
+        }
+        .signature-box .name {
+            font-weight: bold;
+            text-decoration: underline;
+            margin-bottom: 5px;
+        }
     </style>
 </head>
 <body class="text-gray-800 flex flex-col min-h-screen">
@@ -86,7 +184,7 @@
             <div class="flex justify-end gap-3 mb-4">
                 <button onclick="downloadDOC()" class="bg-gray-600 text-white px-4 py-2 rounded shadow flex items-center gap-2"><i class="fas fa-file-word"></i> Unduh DOC</button>
             </div>
-            <div id="rpmOutput" class="bg-white p-8 shadow-lg rounded-xl border min-h-[800px] rpm-table"></div>
+            <div id="rpmOutput" class="bg-white p-8 shadow-lg rounded-xl border"></div>
         </section>
     </main>
 
@@ -158,32 +256,73 @@
             }
         });
 
+        // Fungsi untuk format materi dari markdown ke HTML
+        function formatMateriHTML(teks) {
+            if (!teks) return '<p>Materi akan digenerate oleh AI</p>';
+            
+            let formatted = teks;
+            
+            // Jika sudah ada tag HTML, langsung return
+            if (formatted.includes('<h3>') || formatted.includes('<p>')) {
+                return formatted;
+            }
+            
+            // Convert markdown ke HTML
+            formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            formatted = formatted.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
+            formatted = formatted.replace(/^##\s+(.+)$/gm, '<h3>$1</h3>');
+            formatted = formatted.replace(/([A-Z]\.\s+[^\n<]+)/g, '<h3>$1</h3>');
+            formatted = formatted.replace(/\n\n/g, '</p><p>');
+            formatted = formatted.replace(/\n/g, '<br>');
+            
+            if (!formatted.startsWith('<')) {
+                formatted = '<p>' + formatted + '</p>';
+            }
+            
+            return formatted;
+        }
+
+        // Fungsi format text biasa (untuk kunci & rubrik)
+        function formatText(teks) {
+            if (!teks) return '-';
+            return teks.replace(/\n/g, '<br>').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        }
+
         function renderRPM(data, idt) {
             const out = document.getElementById('rpmOutput');
-            const praktikHTML = (data.desain && data.desain.praktik_pedagogis ? data.desain.praktik_pedagogis : []).map(function(p,i) { return '<tr><td class="text-center">' + (i+1) + '</td><td>' + p + '</td></tr>'; }).join('') || 
-                (data.praktikList ? data.praktikList.map(function(p,i) { return '<tr><td class="text-center">' + (i+1) + '</td><td>' + p + '</td></tr>'; }).join('') : '<tr><td colspan="2" class="text-center">-</td></tr>');
             
-            const kisiHTML = (data.lampiran && data.lampiran.kisi_kisi ? data.lampiran.kisi_kisi : []).map(function(k) { 
+            const praktikList = (data.desain && data.desain.praktik_pedagogis) || idt.praktikList || [];
+            const praktikHTML = praktikList.map(function(p,i) { 
+                return '<tr><td class="text-center">' + (i+1) + '</td><td>' + p + '</td></tr>'; 
+            }).join('') || '<tr><td colspan="2" class="text-center">-</td></tr>';
+            
+            const kisiList = (data.lampiran && data.lampiran.kisi_kisi) || [];
+            const kisiHTML = kisiList.map(function(k) { 
                 return '<tr><td class="text-center">' + k.no + '</td><td>' + k.tp + '</td><td>' + k.indikator + '</td><td class="text-center">' + k.level + '</td><td class="text-center">' + k.nomor + '</td></tr>';
             }).join('') || '<tr><td colspan="5" class="text-center">Kisi-kisi akan digenerate oleh AI</td></tr>';
 
             const dimensiText = idt.dimensiList ? idt.dimensiList.join(', ') : '-';
+            const materiHTML = formatMateriHTML(data.lampiran && data.lampiran.materi ? data.lampiran.materi : '');
 
             out.innerHTML = '<h2 class="text-center font-bold text-lg uppercase mb-4">Rencana Pembelajaran Mendalam (RPM)</h2>' +
-                '<table class="w-full mb-4 rpm-table text-sm">' +
-                '<tr><th class="w-1/3">Nama Satuan Pendidikan</th><td>' + idt.sekolah + '</td><th class="w-1/4">Tahun Pelajaran</th><td>' + idt.tahun + '</td></tr>' +
+                
+                '<table class="rpm-table">' +
+                '<tr><th>Nama Satuan Pendidikan</th><td>' + idt.sekolah + '</td><th>Tahun Pelajaran</th><td>' + idt.tahun + '</td></tr>' +
                 '<tr><th>Mata Pelajaran</th><td>' + idt.mapel + '</td><th>Kelas/Semester</th><td>' + idt.kelas + '</td></tr>' +
                 '<tr><th>Durasi Pertemuan</th><td colspan="3">' + idt.durasi + ' × ' + idt.jmlPertemuan + ' pertemuan</td></tr>' +
                 '</table>' +
-                '<h3 class="font-bold mt-4 mb-2">2. Identifikasi</h3>' +
-                '<table class="w-full mb-4 rpm-table text-sm">' +
-                '<tr><th class="w-1/3">Karakteristik Murid</th><td>' + (data.identifikasi && data.identifikasi.murid ? data.identifikasi.murid : '-') + '</td></tr>' +
+
+                '<h3 class="rpm-heading">2. Identifikasi</h3>' +
+                '<table class="rpm-table">' +
+                '<tr><th>Karakteristik Murid</th><td>' + (data.identifikasi && data.identifikasi.murid ? data.identifikasi.murid : '-') + '</td></tr>' +
                 '<tr><th>Materi Pelajaran</th><td>' + idt.materi + '</td></tr>' +
                 '<tr><th>Capaian Dimensi Lulusan</th><td>' + dimensiText + '</td></tr>' +
                 '</table>' +
-                '<h3 class="font-bold mt-4 mb-2">3. Desain Pembelajaran</h3>' +
-                '<table class="w-full mb-4 rpm-table text-sm">' +
-                '<tr><th class="w-1/3">Capaian Pembelajaran</th><td>' + idt.cp + '</td></tr>' +
+
+                '<h3 class="rpm-heading">3. Desain Pembelajaran</h3>' +
+                '<table class="rpm-table">' +
+                '<tr><th>Capaian Pembelajaran</th><td>' + idt.cp + '</td></tr>' +
                 '<tr><th>Lintas Disiplin Ilmu</th><td>' + (data.identifikasi && data.identifikasi.lintas_disiplin ? data.identifikasi.lintas_disiplin : '-') + '</td></tr>' +
                 '<tr><th>Tujuan Pembelajaran</th><td>' + idt.tp + '</td></tr>' +
                 '<tr><th>Topik Pembelajaran</th><td>' + (data.identifikasi && data.identifikasi.topik ? data.identifikasi.topik : '-') + '</td></tr>' +
@@ -191,44 +330,62 @@
                 '<tr><th>Lingkungan Pembelajaran</th><td>' + (data.desain && data.desain.lingkungan ? data.desain.lingkungan : '-') + '</td></tr>' +
                 '<tr><th>Pemanfaatan Digital</th><td>' + (data.desain && data.desain.digital ? data.desain.digital : '-') + '</td></tr>' +
                 '</table>' +
-                '<h3 class="font-bold mt-4 mb-2">Praktik Pedagogis per Pertemuan</h3>' +
-                '<table class="w-full mb-4 rpm-table text-sm">' +
-                '<thead><tr><th class="w-16 text-center">No</th><th>Model/Praktik</th></tr></thead>' +
+
+                '<h3 class="rpm-heading">Praktik Pedagogis per Pertemuan</h3>' +
+                '<table class="rpm-table">' +
+                '<thead><tr><th class="text-center" style="width:10%">No</th><th>Model/Praktik</th></tr></thead>' +
                 '<tbody>' + praktikHTML + '</tbody>' +
                 '</table>' +
-                '<h3 class="font-bold mt-4 mb-2">4. Pengalaman Belajar</h3>' +
-                '<table class="w-full mb-4 rpm-table text-sm">' +
-                '<tr><th class="w-1/3">Memahami (Kegiatan Awal)</th><td>' + (data.pengalaman && data.pengalaman.memahami ? data.pengalaman.memahami : '-') + '</td></tr>' +
+
+                '<h3 class="rpm-heading">4. Pengalaman Belajar</h3>' +
+                '<table class="rpm-table">' +
+                '<tr><th>Memahami (Kegiatan Awal)</th><td>' + (data.pengalaman && data.pengalaman.memahami ? data.pengalaman.memahami : '-') + '</td></tr>' +
                 '<tr><th>Mengaplikasi (Kegiatan Inti)</th><td>' + (data.pengalaman && data.pengalaman.mengaplikasi ? data.pengalaman.mengaplikasi : '-') + '</td></tr>' +
                 '<tr><th>Refleksi (Kegiatan Penutup)</th><td>' + (data.pengalaman && data.pengalaman.refleksi ? data.pengalaman.refleksi : '-') + '</td></tr>' +
                 '</table>' +
-                '<h3 class="font-bold mt-4 mb-2">5. Asesmen Pembelajaran</h3>' +
-                '<table class="w-full mb-4 rpm-table text-sm">' +
-                '<tr><th class="w-1/3">Asesmen Awal</th><td>' + (data.asesmen && data.asesmen.awal ? data.asesmen.awal : '-') + '</td></tr>' +
+
+                '<h3 class="rpm-heading">5. Asesmen Pembelajaran</h3>' +
+                '<table class="rpm-table">' +
+                '<tr><th>Asesmen Awal</th><td>' + (data.asesmen && data.asesmen.awal ? data.asesmen.awal : '-') + '</td></tr>' +
                 '<tr><th>Asesmen Proses</th><td>' + (data.asesmen && data.asesmen.proses ? data.asesmen.proses : '-') + '</td></tr>' +
                 '<tr><th>Asesmen Akhir</th><td>' + (data.asesmen && data.asesmen.akhir ? data.asesmen.akhir : '-') + '</td></tr>' +
                 '</table>' +
-                '<div class="mt-8 flex justify-between text-sm px-4">' +
-                '<div class="text-center w-1/3"><p class="mb-16">Mengetahui,<br>Kepala Sekolah</p><p class="font-bold underline">' + idt.kepsek + '</p><p>NIP. ' + idt.nipKepsek + '</p></div>' +
-                '<div class="text-center w-1/3"><p class="mb-16">Guru Mata Pelajaran</p><p class="font-bold underline">' + idt.guru + '</p><p>NIP. ' + idt.nipGuru + '</p></div>' +
+
+                '<div class="flex justify-between mt-8" style="margin-top:40px;">' +
+                '<div class="signature-box" style="width:45%;">' +
+                '<p>Mengetahui,<br>Kepala Sekolah</p>' +
+                '<p class="name">' + idt.kepsek + '</p>' +
+                '<p>NIP. ' + idt.nipKepsek + '</p>' +
                 '</div>' +
-                '<h3 class="font-bold mt-8 mb-2 border-t pt-4">Lampiran 1: Materi Bahan Ajar</h3>' +
-                '<div class="rpm-table p-4 text-sm mb-4">' + (data.lampiran && data.lampiran.materi ? data.lampiran.materi : 'Materi akan digenerate oleh AI') + '</div>' +
-                '<h3 class="font-bold mt-4 mb-2">Lampiran 2: Kisi-Kisi & Asesmen</h3>' +
-                '<table class="w-full mb-4 rpm-table text-sm">' +
+                '<div class="signature-box" style="width:45%;">' +
+                '<p>Guru Mata Pelajaran</p>' +
+                '<p class="name">' + idt.guru + '</p>' +
+                '<p>NIP. ' + idt.nipGuru + '</p>' +
+                '</div>' +
+                '</div>' +
+
+                '<h3 class="rpm-heading" style="margin-top:40px; border-top:2px solid #000; padding-top:15px;">Lampiran 1: Materi Bahan Ajar</h3>' +
+                '<div class="materi-container">' + materiHTML + '</div>' +
+
+                '<h3 class="rpm-heading">Lampiran 2: Kisi-Kisi & Asesmen</h3>' +
+                '<table class="rpm-table">' +
                 '<thead><tr><th>No</th><th>TP</th><th>Indikator Soal</th><th class="text-center">Level</th><th>No Soal</th></tr></thead>' +
                 '<tbody>' + kisiHTML + '</tbody>' +
                 '</table>' +
-                '<div class="rpm-table p-4 text-sm mb-2"><strong>Kunci Jawaban:</strong><br>' + (data.lampiran && data.lampiran.kunci ? data.lampiran.kunci : '-') + '</div>' +
-                '<div class="rpm-table p-4 text-sm"><strong>Rubrik Penilaian:</strong><br>' + (data.lampiran && data.lampiran.rubrik ? data.lampiran.rubrik : '-') + '</div>';
+                '<div class="rpm-table" style="padding:10px;"><strong>Kunci Jawaban:</strong><br>' + formatText(data.lampiran && data.lampiran.kunci ? data.lampiran.kunci : '-') + '</div>' +
+                '<div class="rpm-table" style="padding:10px;"><strong>Rubrik Penilaian:</strong><br>' + formatText(data.lampiran && data.lampiran.rubrik ? data.lampiran.rubrik : '-') + '</div>';
         }
 
         function downloadDOC() {
             const html = document.getElementById('rpmOutput').innerHTML;
-            const blob = new Blob(['<html><head><style>.rpm-table td,.rpm-table th{border:1px solid #000;padding:6px;text-align:justify;vertical-align:top;}.rpm-table th{background:#f3f4f6;font-weight:bold;}</style></head><body>' + html + '</body></html>'], {type:'application/msword'});
+            const blob = new Blob(['<html><head><style>body{font-family:Times New Roman,serif;font-size:12pt;} table{border-collapse:collapse;width:100%;margin-bottom:15px;} td,th{border:1px solid #000;padding:8px;text-align:justify;vertical-align:top;} th{background:#f3f4f6;font-weight:bold;} h2{font-size:16pt;text-align:center;font-weight:bold;text-transform:uppercase;} h3{font-size:12pt;font-weight:bold;margin-top:15px;margin-bottom:10px;color:#1e40af;border-bottom:2px solid #3b82f6;padding-bottom:5px;}</style></head><body>' + html + '</body></html>'], {type:'application/msword'});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url; a.download = 'RPM_Kurikulum_Merdeka.doc'; a.click();
+            a.href = url; 
+            const mapel = document.getElementById('mapel').value || 'RPM';
+            const kelas = document.getElementById('kelas').value || '';
+            a.download = 'RPM_' + mapel + '_' + kelas + '.doc'; 
+            a.click();
         }
     </script>
 </body>
