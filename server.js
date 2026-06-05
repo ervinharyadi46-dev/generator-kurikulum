@@ -70,7 +70,7 @@ function fallbackRPM() {
 }
 
 // ========================================
-// 🔹 ENDPOINT ATP
+// 🔹 ENDPOINT ATP (OPTIMIZED BATCH CALL)
 // ========================================
 app.post('/api/atp', async (req, res) => {
     try {
@@ -79,56 +79,86 @@ app.post('/api/atp', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Data tidak lengkap' });
         }
 
-        const hasil = [];
-        for (const elem of elemenList) {
-            const prompt = `Ahli kurikulum Kurikulum Merdeka. Buatkan Tujuan Pembelajaran (TP) dari:
+        // Susun daftar elemen menjadi teks terstruktur untuk AI
+        const daftarElemenTeks = elemenList.map((elem, idx) => 
+            `${idx + 1}. Elemen: ${elem.nama}\n   CP: ${elem.cp}`
+        ).join('\n\n');
+
+        // Mengubah prompt agar memproses sekaligus semua elemen dalam 1 kali panggil
+        const prompt = `Ahli kurikulum Kurikulum Merdeka Indonesia. Buatkan Tujuan Pembelajaran (TP) dari data berikut:
 Mapel: ${identitas.mapel} | Fase: ${identitas.fase}
-Elemen: ${elem.nama} | CP: ${elem.cp}
-Buat MINIMAL 5 TP. Output HANYA JSON Array dengan struktur: [{"no":1,"text":"..."}]`;
 
-            let attempts = 0, result, lastError;
-            while (attempts < 3) {
-                try { 
-                    result = await model.generateContent({
-                        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                        generationConfig: { 
-                            temperature: 0.7, 
-                            maxOutputTokens: 8192,
-                            responseMimeType: "application/json"
-                        }
-                    });
-                    break; 
-                } catch (err) { 
-                    lastError = err;
-                    attempts++; 
-                    console.error(`[ATP] Percobaan ${attempts} gagal:`, err.message);
-                    await new Promise(r => setTimeout(r, 2000 * attempts)); 
-                }
+Daftar Elemen dan CP:
+${daftarElemenTeks}
+
+TUGAS:
+Buat MINIMAL 5 TP untuk masing-masing elemen di atas. 
+Output WAJIB berupa JSON Array of Objects dengan struktur persis seperti ini:
+[
+  {
+    "elemenNama": "Tulis nama elemen di sini sesuai input",
+    "tujuanPembelajaran": [
+      {"no": 1, "text": "Peserta didik mampu..."},
+      {"no": 2, "text": "..."}
+    ]
+  }
+]`;
+
+        let attempts = 0, result, lastError;
+        while (attempts < 3) {
+            try { 
+                result = await model.generateContent({
+                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                    generationConfig: { 
+                        temperature: 0.7, 
+                        maxOutputTokens: 8192,
+                        responseMimeType: "application/json"
+                    }
+                });
+                break; 
+            } catch (err) { 
+                lastError = err;
+                attempts++; 
+                console.error(`[ATP] Percobaan ${attempts} gagal:`, err.message);
+                if (attempts < 3) await new Promise(r => setTimeout(r, 1500 * attempts)); 
             }
-            if (!result) throw new Error(`AI error: ${lastError?.message || 'Gagal merespons'}`);
+        }
+        
+        if (!result) throw new Error(`AI error: ${lastError?.message || 'Gagal merespons'}`);
 
-            const raw = result.response.text();
-            let tp;
-            try {
-                tp = JSON.parse(raw);
-                if (!Array.isArray(tp) || tp.length < 5) tp = fallbackTP(elem.nama, identitas.fase);
-            } catch (parseError) {
-                console.error('[ATP] Gagal baca JSON dari AI, menggunakan teks cadangan.');
+        const raw = result.response.text();
+        let aiJson;
+        try {
+            aiJson = JSON.parse(raw);
+        } catch (parseError) {
+            console.error('[ATP] Gagal baca JSON dari AI, beralih ke total fallback.');
+            aiJson = [];
+        }
+
+        // Mapping kembali hasil dari AI dicocokkan dengan data asli dari client
+        const hasil = elemenList.map(elem => {
+            // Cari data yang namanya mirip/sama di response AI
+            const match = Array.isArray(aiJson) && aiJson.find(item => 
+                item.elemenNama?.toLowerCase().trim() === elem.nama?.toLowerCase().trim()
+            );
+
+            let tp = match ? match.tujuanPembelajaran : null;
+
+            // Validasi kelayakan hasil TP
+            if (!Array.isArray(tp) || tp.length < 5) {
+                console.warn(`[ATP] Menggunakan fallback untuk elemen: ${elem.nama}`);
                 tp = fallbackTP(elem.nama, identitas.fase);
             }
 
-            hasil.push({ 
+            return { 
                 elemen: elem.nama, 
                 cp: elem.cp, 
                 pertemuan: elem.pertemuan, 
                 jp: elem.jp, 
                 tujuanPembelajaran: tp 
-            });
-            
-            if (elemenList.indexOf(elem) < elemenList.length - 1) {
-                await new Promise(r => setTimeout(r, 1500));
-            }
-        }
+            };
+        });
+
         res.json({ success: true, data: hasil });
     } catch (e) {
         console.error('❌ ATP Error:', e.message);
@@ -137,7 +167,7 @@ Buat MINIMAL 5 TP. Output HANYA JSON Array dengan struktur: [{"no":1,"text":"...
 });
 
 // ========================================
-// 🔹 ENDPOINT RPM (LENGKAP DENGAN AI CALL)
+// 🔹 ENDPOINT RPM
 // ========================================
 app.post('/api/rpm', async (req, res) => {
     try {
@@ -194,7 +224,6 @@ ATURAN PENTING:
 3. Materi harus terstruktur minimal 3 sub-bab (A, B, C)
 4. Output HANYA JSON tanpa \`\`\` wrapper`;
 
-        // PANGGIL AI GEMINI
         let attempts = 0, result, lastError;
         while (attempts < 3) {
             try {
@@ -211,7 +240,7 @@ ATURAN PENTING:
                 lastError = err;
                 attempts++;
                 console.error(`[RPM] Percobaan ${attempts} gagal:`, err.message);
-                await new Promise(r => setTimeout(r, 2000 * attempts));
+                if (attempts < 3) await new Promise(r => setTimeout(r, 1500 * attempts));
             }
         }
 
@@ -219,23 +248,19 @@ ATURAN PENTING:
             throw new Error(`AI error setelah 3 percobaan: ${lastError?.message || 'Gagal merespons'}`);
         }
 
-        // PROSES RESPONSE DARI AI
         const raw = result.response.text();
         let data;
         try {
             data = JSON.parse(raw);
-            // Validasi struktur minimal
             if (!data.identifikasi || !data.desain || !data.pengalaman || !data.asesmen || !data.lampiran) {
                 console.warn('[RPM] Struktur JSON tidak lengkap, menggunakan fallback');
                 data = fallbackRPM();
             }
         } catch (parseError) {
             console.error('[RPM] Gagal parse JSON dari AI:', parseError.message);
-            console.error('[RPM] Raw response:', raw.substring(0, 500));
             data = fallbackRPM();
         }
 
-        // KIRIM RESPONSE KE CLIENT
         res.json({ success: true, data: data });
 
     } catch (e) {
@@ -263,6 +288,14 @@ app.get('/rpm', (req, res) => {
 });
 
 // ========================================
-// 🔹 EXPORT UNTUK VERCEL
+// 🔹 LOCAL SERVER RUNNER & EXPORT VERCEL
 // ========================================
+// Blok ini membuat aplikasi bisa dijalankan di lokal dengan command `node <nama_file>.js`
+if (process.env.NODE_ENV !== 'production') {
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+        console.log(`🚀 Server berjalan lokal di http://localhost:${PORT}`);
+    });
+}
+
 module.exports = app;
