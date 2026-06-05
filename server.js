@@ -14,16 +14,60 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ========================================
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) {
-    console.error('❌ GEMINI_API_KEY tidak ditemukan! Cek file .env kamu.');
+    console.error('❌ GEMINI_API_KEY tidak ditemukan! Cek Environment Variables.');
     process.exit(1);
 }
 console.log('🔑 API Key terdeteksi');
 
-// Menggunakan model Gemini 2.5 Flash yang terbukti sukses di ATP
 const MODEL_NAME = 'gemini-2.5-flash';
 const genAI = new GoogleGenerativeAI(apiKey);
 const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 console.log(`📚 Model: ${MODEL_NAME}`);
+
+// ========================================
+// 🔹 FALLBACK FUNCTIONS
+// ========================================
+function fallbackTP(elemenNama, fase) {
+    const verbs = ['memahami','menjelaskan','menganalisis','menerapkan','mengevaluasi'];
+    return Array.from({length:5}, (_,i)=>({
+        no: i+1,
+        text: `Peserta didik mampu ${verbs[i]} konsep dasar ${elemenNama} sesuai level ${fase}.`
+    }));
+}
+
+function fallbackRPM() {
+    return {
+        identifikasi: {
+            murid: "Karakteristik murid akan ditampilkan di sini",
+            lintas_disiplin: "Mapel lintas disiplin akan ditampilkan di sini",
+            topik: "Topik pembelajaran akan ditampilkan di sini"
+        },
+        desain: {
+            kemitraan: "Rekomendasi kemitraan akan ditampilkan di sini",
+            lingkungan: "Deskripsi lingkungan akan ditampilkan di sini",
+            digital: "Tools digital akan ditampilkan di sini"
+        },
+        pengalaman: {
+            memahami: "Kegiatan awal akan ditampilkan di sini",
+            mengaplikasi: "Kegiatan inti akan ditampilkan di sini",
+            refleksi: "Kegiatan penutup akan ditampilkan di sini"
+        },
+        asesmen: {
+            awal: "Asesmen diagnostik akan ditampilkan di sini",
+            proses: "Observasi proses akan ditampilkan di sini",
+            akhir: "Asesmen akhir akan ditampilkan di sini"
+        },
+        lampiran: {
+            materi: "<h3>A. Pendahuluan</h3><p>Materi bahan ajar akan ditampilkan di sini setelah AI berhasil generate.</p><h3>B. Isi Materi</h3><p>Penjelasan detail materi akan muncul di sini.</p><h3>C. Kesimpulan</h3><p>Rangkuman materi akan ditampilkan di sini.</p>",
+            kisi_kisi: [
+                {no: 1, tp: "TP 1", indikator: "Indikator soal 1", level: "L1", nomor: "1"},
+                {no: 2, tp: "TP 2", indikator: "Indikator soal 2", level: "L2", nomor: "2"}
+            ],
+            kunci: "1. Jawaban A\n2. Jawaban B",
+            rubrik: "Aspek Pemahaman:\n- Skor 4: Sangat baik\n- Skor 3: Baik\n- Skor 2: Cukup\n- Skor 1: Kurang"
+        }
+    };
+}
 
 // ========================================
 // 🔹 ENDPOINT ATP
@@ -54,8 +98,7 @@ Buat MINIMAL 5 TP. Output HANYA JSON Array dengan struktur: [{"no":1,"text":"...
                         }
                     });
                     break; 
-                }
-                catch (err) { 
+                } catch (err) { 
                     lastError = err;
                     attempts++; 
                     console.error(`[ATP] Percobaan ${attempts} gagal:`, err.message);
@@ -74,8 +117,17 @@ Buat MINIMAL 5 TP. Output HANYA JSON Array dengan struktur: [{"no":1,"text":"...
                 tp = fallbackTP(elem.nama, identitas.fase);
             }
 
-            hasil.push({ elemen: elem.nama, cp: elem.cp, pertemuan: elem.pertemuan, jp: elem.jp, tujuanPembelajaran: tp });
-            if (elemenList.indexOf(elem) < elemenList.length - 1) await new Promise(r => setTimeout(r, 1500));
+            hasil.push({ 
+                elemen: elem.nama, 
+                cp: elem.cp, 
+                pertemuan: elem.pertemuan, 
+                jp: elem.jp, 
+                tujuanPembelajaran: tp 
+            });
+            
+            if (elemenList.indexOf(elem) < elemenList.length - 1) {
+                await new Promise(r => setTimeout(r, 1500));
+            }
         }
         res.json({ success: true, data: hasil });
     } catch (e) {
@@ -85,7 +137,7 @@ Buat MINIMAL 5 TP. Output HANYA JSON Array dengan struktur: [{"no":1,"text":"...
 });
 
 // ========================================
-// 🔹 ENDPOINT RPM (SUDAH DIOPTIMALKAN BIAR RAPI)
+// 🔹 ENDPOINT RPM (LENGKAP DENGAN AI CALL)
 // ========================================
 app.post('/api/rpm', async (req, res) => {
     try {
@@ -142,21 +194,75 @@ ATURAN PENTING:
 3. Materi harus terstruktur minimal 3 sub-bab (A, B, C)
 4. Output HANYA JSON tanpa \`\`\` wrapper`;
 
-// Fallback untuk ATP
-function fallbackTP(elemenNama, fase) {
-    const verbs = ['memahami','menjelaskan','menganalisis','menerapkan','mengevaluasi'];
-    return Array.from({length:5}, (_,i)=>({no:i+1,text:`Peserta didik mampu ${verbs[i]} konsep dasar ${elemenNama} sesuai level ${fase}.`}));
-}
+        // PANGGIL AI GEMINI
+        let attempts = 0, result, lastError;
+        while (attempts < 3) {
+            try {
+                result = await model.generateContent({
+                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                    generationConfig: { 
+                        temperature: 0.7, 
+                        maxOutputTokens: 8192,
+                        responseMimeType: "application/json"
+                    }
+                });
+                break;
+            } catch (err) {
+                lastError = err;
+                attempts++;
+                console.error(`[RPM] Percobaan ${attempts} gagal:`, err.message);
+                await new Promise(r => setTimeout(r, 2000 * attempts));
+            }
+        }
 
-// Status endpoint
-app.get('/api/status', (req,res)=>res.json({status:'ok',model: MODEL_NAME}));
+        if (!result) {
+            throw new Error(`AI error setelah 3 percobaan: ${lastError?.message || 'Gagal merespons'}`);
+        }
+
+        // PROSES RESPONSE DARI AI
+        const raw = result.response.text();
+        let data;
+        try {
+            data = JSON.parse(raw);
+            // Validasi struktur minimal
+            if (!data.identifikasi || !data.desain || !data.pengalaman || !data.asesmen || !data.lampiran) {
+                console.warn('[RPM] Struktur JSON tidak lengkap, menggunakan fallback');
+                data = fallbackRPM();
+            }
+        } catch (parseError) {
+            console.error('[RPM] Gagal parse JSON dari AI:', parseError.message);
+            console.error('[RPM] Raw response:', raw.substring(0, 500));
+            data = fallbackRPM();
+        }
+
+        // KIRIM RESPONSE KE CLIENT
+        res.json({ success: true, data: data });
+
+    } catch (e) {
+        console.error('❌ RPM Error:', e.message);
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
 
 // ========================================
-// 🔹 START SERVER
+// 🔹 STATUS ENDPOINT
 // ========================================
-const PORT = process.env.PORT || 3001;
+app.get('/api/status', (req, res) => {
+    res.json({ status: 'ok', model: MODEL_NAME });
+});
 
-app.get('/atp', (req, res) => res.sendFile(path.join(__dirname, 'public', 'atp', 'index.html')));
-app.get('/rpm', (req, res) => res.sendFile(path.join(__dirname, 'public', 'rpm', 'index.html')));
+// ========================================
+// 🔹 ROUTES UNTUK STATIC FILES
+// ========================================
+app.get('/atp', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'atp', 'index.html'));
+});
 
+app.get('/rpm', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'rpm', 'index.html'));
+});
+
+// ========================================
+// 🔹 EXPORT UNTUK VERCEL
+// ========================================
 module.exports = app;
