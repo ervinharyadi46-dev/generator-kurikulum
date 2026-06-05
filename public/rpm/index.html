@@ -6,6 +6,8 @@
     <title>Generator RPM - Kurikulum Merdeka</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Library untuk Export PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f8fafc; }
         .rpm-table td, .rpm-table th { border: 1px solid #000; padding: 8px; vertical-align: top; text-align: justify; }
@@ -57,10 +59,6 @@
             font-weight: bold;
         }
         
-        .materi-container br {
-            margin-bottom: 8px;
-        }
-        
         /* Styling untuk lampiran kunci & rubrik */
         .lampiran-text {
             line-height: 1.8;
@@ -68,12 +66,133 @@
             white-space: pre-wrap;
             font-family: 'Times New Roman', serif;
         }
+        
+        /* ======================================== */
+        /* STYLING UNTUK EXPORT PDF */
+        /* ======================================== */
+        .pdf-content {
+            background: white !important;
+            padding: 20px !important;
+            font-family: 'Times New Roman', serif !important;
+        }
+
+        .pdf-content h2 {
+            font-size: 14pt !important;
+            text-align: center !important;
+            font-weight: bold !important;
+            text-transform: uppercase !important;
+            margin-bottom: 15px !important;
+            color: #000 !important;
+        }
+
+        .pdf-content h3 {
+            font-size: 12pt !important;
+            font-weight: bold !important;
+            margin-top: 12px !important;
+            margin-bottom: 8px !important;
+            color: #000 !important;
+            border-bottom: 2px solid #000 !important;
+            padding-bottom: 4px !important;
+        }
+
+        .pdf-content table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin-bottom: 12px !important;
+            font-size: 10pt !important;
+        }
+
+        .pdf-content table td,
+        .pdf-content table th {
+            border: 1px solid #000 !important;
+            padding: 6px !important;
+            vertical-align: top !important;
+            text-align: justify !important;
+        }
+
+        .pdf-content table th {
+            background-color: #f3f4f6 !important;
+            font-weight: bold !important;
+        }
+
+        .pdf-content .materi-container {
+            line-height: 1.6 !important;
+            text-align: justify !important;
+            font-size: 10pt !important;
+            padding: 10px !important;
+            border: 1px solid #000 !important;
+        }
+
+        .pdf-content .materi-container h3 {
+            font-size: 11pt !important;
+            color: #000 !important;
+            border-bottom: 1px solid #000 !important;
+        }
+
+        .pdf-content .materi-container p {
+            margin-bottom: 8px !important;
+            text-align: justify !important;
+        }
+
+        .pdf-content .lampiran-text {
+            line-height: 1.6 !important;
+            text-align: justify !important;
+            font-size: 10pt !important;
+            padding: 10px !important;
+            border: 1px solid #000 !important;
+        }
+
+        /* Sembunyikan tombol saat generate PDF */
+        .no-print {
+            display: none !important;
+        }
+
+        /* Loading overlay untuk PDF */
+        .pdf-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .pdf-loading-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .pdf-loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #dc2626;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        /* Animasi notifikasi */
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(400px); opacity: 0; }
+        }
     </style>
 </head>
 <body class="text-gray-800 flex flex-col min-h-screen">
 
     <!-- Header -->
-    <header class="bg-green-700 text-white p-4 shadow-md">
+    <header class="bg-green-700 text-white p-4 shadow-md no-print">
         <div class="container mx-auto flex justify-between items-center">
             <h1 class="text-xl font-bold"><i class="fas fa-book-open mr-2"></i>Generator RPM</h1>
             <a href="/" class="text-sm bg-green-800 px-3 py-1 rounded hover:bg-green-900"><i class="fas fa-home"></i> Dashboard</a>
@@ -81,7 +200,7 @@
     </header>
 
     <main class="container mx-auto px-4 py-6 max-w-5xl flex-grow">
-        <section class="bg-white p-6 rounded-xl shadow-md mb-6">
+        <section class="bg-white p-6 rounded-xl shadow-md mb-6 no-print">
             <h2 class="text-lg font-bold mb-4 text-green-700 border-b pb-2">Input Data RPM</h2>
             <form id="rpmForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- Identitas -->
@@ -143,16 +262,23 @@
         </section>
 
         <section id="resultArea" class="hidden">
-            <div class="flex justify-end gap-3 mb-4">
-                <button onclick="copyToDocs()" class="bg-blue-600 text-white px-4 py-2 rounded shadow flex items-center gap-2"><i class="fas fa-copy"></i> Salin & Buka Google Docs</button>
-                <button onclick="downloadDOC()" class="bg-gray-600 text-white px-4 py-2 rounded shadow flex items-center gap-2"><i class="fas fa-file-word"></i> Unduh DOC</button>
+            <div class="flex justify-end gap-3 mb-4 no-print">
+                <button onclick="downloadPDF()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded shadow flex items-center gap-2">
+                    <i class="fas fa-file-pdf"></i> Download PDF
+                </button>
+                <button onclick="copyToDocs()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow flex items-center gap-2">
+                    <i class="fas fa-copy"></i> Salin & Buka Google Docs
+                </button>
+                <button onclick="downloadDOC()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded shadow flex items-center gap-2">
+                    <i class="fas fa-file-word"></i> Unduh DOC
+                </button>
             </div>
             <div id="rpmOutput" class="bg-white p-8 shadow-lg rounded-xl border min-h-[800px] rpm-table"></div>
         </section>
     </main>
 
     <!-- Footer -->
-    <footer class="bg-gray-800 text-gray-300 py-4 text-center text-xs mt-auto">
+    <footer class="bg-gray-800 text-gray-300 py-4 text-center text-xs mt-auto no-print">
         <p class="font-semibold">Copyright © 2026 Ervin Rudi Haryadi</p>
         <p>Pengawas SMK - Cabang Dinas Pendidikan Wilayah VII Provinsi Jawa Tengah</p>
     </footer>
@@ -230,49 +356,32 @@
             }
         });
 
-        // ✅ FUNGSI FORMAT MATERI HTML YANG DIPERBAIKI
+        // ========================================
+        // 🔹 FUNGSI FORMAT MATERI HTML
+        // ========================================
         function formatMateriHTML(teks) {
             if (!teks) return '<p class="text-gray-500">Materi akan digenerate oleh AI</p>';
             
             let formatted = teks;
             
-            // 1. Jika sudah ada tag HTML yang benar, langsung return
             if (formatted.includes('<h3>') || formatted.includes('<p>')) {
                 return formatted;
             }
             
-            // 2. Bersihkan dari markdown
-            // Ganti **teks** dengan <strong>teks</strong>
             formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-            
-            // Ganti *teks* (italic) dengan <em>teks</em>
             formatted = formatted.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
-            
-            // Ganti # Judul dengan <h3>Judul</h3>
             formatted = formatted.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
             formatted = formatted.replace(/^##\s+(.+)$/gm, '<h3>$1</h3>');
-            
-            // Ganti pola "A. " atau "A)" dengan <h3>A. </h3>
             formatted = formatted.replace(/(^|\n)([A-Z][\.\)]\s+[^\n]+)/g, '$1<h3>$2</h3>');
-            
-            // Ganti pola "1. " dengan list item jika setelahnya ada indentasi
             formatted = formatted.replace(/(^|\n)\s*\d+\.\s+/g, '$1• ');
-            
-            // Ganti bullet points
             formatted = formatted.replace(/(^|\n)\s*[-•]\s+/g, '$1<li>');
-            
-            // Ganti double newline dengan </p><p>
             formatted = formatted.replace(/\n\n+/g, '</p><p>');
-            
-            // Ganti single newline dengan <br>
             formatted = formatted.replace(/\n/g, '<br>');
             
-            // Bungkus dengan <p> jika belum ada tag
             if (!formatted.startsWith('<')) {
                 formatted = '<p>' + formatted + '</p>';
             }
             
-            // Bersihkan <p><br> yang tidak perlu
             formatted = formatted.replace(/<p><br\s*\/?><\/p>/g, '');
             formatted = formatted.replace(/<br\s*\/?><\/p>/g, '</p>');
             formatted = formatted.replace(/<p><br\s*\/?>/g, '<p>');
@@ -280,7 +389,9 @@
             return formatted;
         }
 
-        // ✅ FUNGSI FORMAT KUNCI & RUBRIK (agar newline terbaca)
+        // ========================================
+        // 🔹 FUNGSI FORMAT TEXT (untuk kunci & rubrik)
+        // ========================================
         function formatText(teks) {
             if (!teks) return '-';
             return teks
@@ -288,6 +399,9 @@
                 .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
         }
 
+        // ========================================
+        // 🔹 RENDER RPM
+        // ========================================
         function renderRPM(data, idt) {
             const out = document.getElementById('rpmOutput');
             const praktikHTML = (data.desain?.praktik_pedagogis || []).map((p,i) => `<tr><td class="text-center">${i+1}</td><td>${p}</td></tr>`).join('') || 
@@ -372,15 +486,119 @@
             `;
         }
 
-        // ✅ FUNGSI COPY KE GOOGLE DOCS YANG DIPERBAIKI (preserve format)
+        // ========================================
+        // 🔹 FUNGSI DOWNLOAD PDF
+        // ========================================
+        function downloadPDF() {
+            // Tampilkan loading
+            const loadingOverlay = document.createElement('div');
+            loadingOverlay.className = 'pdf-loading';
+            loadingOverlay.innerHTML = `
+                <div class="pdf-loading-content">
+                    <div class="pdf-loading-spinner"></div>
+                    <p class="font-bold">Membuat PDF...</p>
+                    <p class="text-sm text-gray-600">Mohon tunggu sebentar</p>
+                </div>
+            `;
+            document.body.appendChild(loadingOverlay);
+
+            // Ambil elemen yang akan di-convert ke PDF
+            const element = document.getElementById('rpmOutput');
+            
+            // Ambil data untuk nama file
+            const mapel = document.getElementById('mapel').value || 'RPM';
+            const kelas = document.getElementById('kelas').value || '';
+            const tanggal = new Date().toLocaleDateString('id-ID').replace(/\//g, '-');
+            
+            // Buat nama file
+            const filename = `RPM_${mapel}_${kelas}_${tanggal}.pdf`.replace(/\s+/g, '_');
+
+            // Konfigurasi PDF
+            const opt = {
+                margin: [10, 10, 10, 10],
+                filename: filename,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { 
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    letterRendering: true
+                },
+                jsPDF: { 
+                    unit: 'mm', 
+                    format: 'a4', 
+                    orientation: 'portrait'
+                },
+                pagebreak: { 
+                    mode: ['avoid-all', 'css', 'legacy'],
+                    before: '.page-break'
+                }
+            };
+
+            // Tambahkan class pdf-content untuk styling
+            element.classList.add('pdf-content');
+
+            // Generate PDF
+            html2pdf().set(opt).from(element).save().then(() => {
+                element.classList.remove('pdf-content');
+                document.body.removeChild(loadingOverlay);
+                showNotification('✅ PDF berhasil diunduh!', 'success');
+            }).catch((err) => {
+                element.classList.remove('pdf-content');
+                document.body.removeChild(loadingOverlay);
+                showNotification('❌ Gagal membuat PDF: ' + err.message, 'error');
+                console.error('PDF Error:', err);
+            });
+        }
+
+        // ========================================
+        // 🔹 FUNGSI NOTIFIKASI
+        // ========================================
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 25px;
+                border-radius: 8px;
+                color: white;
+                font-weight: bold;
+                z-index: 10000;
+                animation: slideIn 0.3s ease;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            `;
+            
+            if (type === 'success') {
+                notification.style.background = '#10b981';
+            } else if (type === 'error') {
+                notification.style.background = '#ef4444';
+            } else {
+                notification.style.background = '#3b82f6';
+            }
+            
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    if (document.body.contains(notification)) {
+                        document.body.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        // ========================================
+        // 🔹 FUNGSI COPY KE GOOGLE DOCS
+        // ========================================
         async function copyToDocs() {
             const content = document.getElementById('rpmOutput');
             
-            // Buat temporary container untuk styling copy
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = content.innerHTML;
             
-            // Pastikan inline style diterapkan agar Google Docs membaca format
             tempDiv.querySelectorAll('table').forEach(t => {
                 t.style.borderCollapse = 'collapse';
                 t.style.width = '100%';
@@ -404,11 +622,7 @@
                 p.style.textAlign = 'justify';
                 p.style.lineHeight = '1.8';
             });
-            tempDiv.querySelectorAll('.materi-container ul, .materi-container ol').forEach(l => {
-                l.style.marginLeft = '25px';
-            });
 
-            // Copy process
             const range = document.createRange();
             range.selectNode(tempDiv);
             window.getSelection().removeAllRanges();
@@ -417,16 +631,16 @@
             try {
                 document.execCommand('copy');
                 window.getSelection().removeAllRanges();
-                
-                // Buka Google Docs
                 window.open('https://docs.new', '_blank');
-                alert('✅ Berhasil Disalin!\n\nSilakan Paste (Ctrl+V) di Google Docs yang baru terbuka.\nTabel dan format akan tetap rapi.');
+                alert('✅ Berhasil Disalin!\n\nSilakan Paste (Ctrl+V) di Google Docs yang baru terbuka.');
             } catch (err) {
                 alert('Gagal copy otomatis. Silakan copy manual (Ctrl+C lalu Ctrl+V).');
             }
         }
 
-        // ✅ FUNGSI UNDUH DOC YANG DIPERBAIKI (dengan styling lengkap)
+        // ========================================
+        // 🔹 FUNGSI UNDUH DOC
+        // ========================================
         function downloadDOC() {
             const content = document.getElementById('rpmOutput').innerHTML;
             const htmlFull = `
@@ -447,15 +661,6 @@
                         .materi-container li { margin-bottom: 6pt; line-height: 1.6; }
                         .materi-container strong { color: #1e40af; font-weight: bold; }
                         .lampiran-text { line-height: 1.8; text-align: justify; padding: 12pt; border: 1px solid #000; margin-bottom: 12pt; }
-                        .text-center { text-align: center; }
-                        .font-bold { font-weight: bold; }
-                        .underline { text-decoration: underline; }
-                        .mt-8 { margin-top: 24pt; }
-                        .mb-16 { margin-bottom: 48pt; }
-                        .flex { display: flex; }
-                        .justify-between { justify-content: space-between; }
-                        .px-4 { padding-left: 12pt; padding-right: 12pt; }
-                        .w-1\\/3 { width: 33%; }
                     </style>
                 </head>
                 <body>${content}</body>
@@ -465,7 +670,9 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url; 
-            a.download = `RPM_${document.getElementById('mapel').value}_${document.getElementById('kelas').value}.doc`;
+            const mapel = document.getElementById('mapel').value || 'RPM';
+            const kelas = document.getElementById('kelas').value || '';
+            a.download = `RPM_${mapel}_${kelas}.doc`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
