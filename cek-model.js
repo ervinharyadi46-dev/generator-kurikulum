@@ -1,27 +1,36 @@
 require('dotenv').config();
 
-async function cekModel() {
+async function cekModelTersedia() {
     const apiKey = process.env.GEMINI_API_KEY;
-    console.log("⏳ Sedang mengambil daftar model dari Google...");
+    if (!apiKey) {
+        console.error("❌ GEMINI_API_KEY tidak ditemukan di .env");
+        return;
+    }
+
+    console.log("🔍 Mengecek model yang tersedia untuk API Key Anda...");
     
     try {
+        // Kita bypass library SDK dan nembak langsung ke API REST Google
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
         const data = await response.json();
-        
-        if (data.error) {
-            console.error("❌ Error API:", data.error.message);
-            return;
+
+        if (data.models) {
+            console.log("\n✅ MODEL YANG TERSEDIA DAN BISA ANDA GUNAKAN:");
+            console.log("-------------------------------------------------");
+            data.models
+                // Filter hanya model yang mendukung fitur generateContent (teks)
+                .filter(m => m.supportedGenerationMethods.includes("generateContent"))
+                .forEach(m => {
+                    console.log(`- Nama: ${m.name.replace('models/', '')}`);
+                });
+            console.log("-------------------------------------------------\n");
+            console.log("💡 TIPS: Copy salah satu nama di atas (misal: gemini-2.0-flash atau gemini-2.5-flash) lalu masukkan ke server.js Anda.");
+        } else {
+            console.error("❌ Gagal mendapatkan daftar model:", data);
         }
-        
-        console.log("✅ Model yang bisa kamu gunakan (cari yang berakhiran 'flash' atau 'pro' dan dukung generateContent):");
-        data.models.forEach(m => {
-            if (m.supportedGenerationMethods.includes("generateContent")) {
-                console.log(`- ${m.name.replace('models/', '')}`);
-            }
-        });
-    } catch (e) {
-        console.error("❌ Gagal menghubungi server Google:", e.message);
+    } catch (error) {
+        console.error("❌ Terjadi kesalahan jaringan:", error.message);
     }
 }
 
-cekModel();
+cekModelTersedia();

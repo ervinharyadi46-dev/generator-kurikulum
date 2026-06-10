@@ -6,170 +6,178 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '20mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ========================================
-// 🔹 KONFIGURASI GEMINI (UPDATED TO 2.5)
-// ========================================
+// ============================================================================
+// 1. INISIALISASI GEMINI AI
+// ============================================================================
 const apiKey = process.env.GEMINI_API_KEY;
+let model;
+
+// 🔥 MODEL YANG TERSEDIA DI SERVER ANDA (Sesuai hasil terminal pengecekan)
+const MODEL_NAME = 'gemini-3.5-flash'; 
+
 if (!apiKey) {
-    console.error('❌ GEMINI_API_KEY tidak ditemukan! Cek Environment Variables.');
-    process.exit(1);
+    console.error('❌ GEMINI_API_KEY tidak ditemukan di environment variables!');
+} else {
+    try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        model = genAI.getGenerativeModel({ 
+            model: MODEL_NAME,
+            generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 8192,
+                // Memaksa AI HANYA mengeluarkan output dalam bentuk JSON murni
+                responseMimeType: "application/json", 
+            }
+        });
+        console.log(`✅ Model AI [${MODEL_NAME}] berhasil diinisialisasi`);
+    } catch (error) {
+        console.error('❌ Gagal inisialisasi model:', error.message);
+    }
 }
 
-const MODEL_NAME = 'gemini-pro';
-const genAI = new GoogleGenerativeAI(apiKey);
-const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-console.log(`📚 Model Aktif: ${MODEL_NAME}`);
+// ============================================================================
+// 2. FUNGSI BANTUAN: AUTO-RETRY & GENERATE
+// ============================================================================
+async function generateAIResponse(prompt, maxRetries = 3) {
+    if (!model) throw new Error("Server belum siap: API Key Gemini tidak valid.");
 
-// ========================================
-// 🔹 FALLBACK FUNCTIONS
-// ========================================
-function fallbackTP(elemenNama, fase) {
-    const verbs = ['memahami','menjelaskan','menganalisis','menerapkan','mengevaluasi'];
-    return Array.from({length:5}, (_,i)=>({
-        no: i+1,
-        text: `Peserta didik mampu ${verbs[i]} konsep dasar ${elemenNama} sesuai level ${fase}.`
-    }));
-}
+    let attempts = 0;
+    let lastError;
 
-function fallbackRPM() {
-    return {
-        identifikasi: { murid: "<p>Karakteristik murid...</p>", lintas_disiplin: "<p>-</p>", topik: "<p>-</p>" },
-        desain: { kemitraan: "<p>-</p>", lingkungan: "<p>-</p>", digital: "<p>-</p>" },
-        pengalaman: { memahami: "<p>-</p>", mengaplikasi: "<p>-</p>", refleksi: "<p>-</p>" },
-        asesmen: { awal: "<p>-</p>", proses: "<p>-</p>", akhir: "<p>-</p>" },
-        lampiran: {
-            materi: "<h3>A. Pendahuluan</h3><p>Materi belum berhasil dimuat.</p>",
-            kisi_kisi: [{"no": 1, "tp": "TP 1", "indikator": "Indikator", "level": "L2", "nomor": "1"}],
-            kunci: "<ol><li>Jawaban A</li></ol>",
-            rubrik: "<table class='table-professional'><tr><th>Aspek</th><th>Skor 4</th><th>Skor 3</th><th>Skor 2</th><th>Skor 1</th></tr><tr><td>Pemahaman</td><td>Sangat Baik</td><td>Baik</td><td>Cukup</td><td>Kurang</td></tr></table>"
+    while (attempts < maxRetries) {
+        try {
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            const text = response.text()?.trim();
+            
+            if (!text) throw new Error('AI merespons dengan teks kosong');
+            
+            // Parse JSON langsung karena kita menggunakan responseMimeType
+            return JSON.parse(text); 
+        } catch (error) {
+            attempts++;
+            lastError = error;
+            console.log(`⚠️ [Attempt ${attempts}/${maxRetries}] AI Error: ${error.message}`);
+            
+            // Jika error 404, tidak perlu retry
+            if (error.message.includes('404')) {
+                throw new Error(`Model '${MODEL_NAME}' tidak ditemukan. Pastikan library @google/generative-ai sudah versi terbaru (npm install @google/generative-ai@latest).`);
+            }
+
+            if (attempts === maxRetries) break;
+            
+            // Jeda waktu sebelum mencoba lagi
+            await new Promise(resolve => setTimeout(resolve, 2000 * attempts));
         }
-    };
+    }
+    
+    throw new Error(`AI gagal setelah ${maxRetries} percobaan. Error terakhir: ${lastError.message}`);
 }
 
-// ========================================
-// 🔹 ENDPOINT ATP (BATCH)
-// ========================================
+// ============================================================================
+// 3. ENDPOINT: GENERATE ATP (/api/atp)
+// ============================================================================
 app.post('/api/atp', async (req, res) => {
     try {
         const { identitas, elemenList } = req.body;
-        if (!identitas || !elemenList?.length) {
+        
+        if (!identitas || !elemenList || elemenList.length === 0) {
             return res.status(400).json({ success: false, message: 'Data tidak lengkap' });
         }
 
-        const daftarElemenTeks = elemenList.map((elem, idx) => `${idx + 1}. Elemen: ${elem.nama}\n   CP: ${elem.cp}`).join('\n\n');
-        const prompt = `Ahli kurikulum Kurikulum Merdeka Indonesia. Buatkan Tujuan Pembelajaran (TP) dari data berikut:
-Mapel: ${identitas.mapel} | Fase: ${identitas.fase}
-${daftarElemenTeks}
+        console.log(`\n📥 [START] Request ATP - Mapel: ${identitas.mapel} | Fase: ${identitas.fase}`);
+        const hasilATP = [];
 
-Buat MINIMAL 5 TP per elemen. Output WAJIB JSON Array:
-[{"elemenNama": "Nama Elemen", "tujuanPembelajaran": [{"no":1,"text":"Peserta didik mampu..."}]}]`;
+        for (let i = 0; i < elemenList.length; i++) {
+            const elem = elemenList[i];
+            console.log(`🔄 Memproses Elemen [${i + 1}/${elemenList.length}]: ${elem.nama}`);
 
-        let result = await model.generateContent({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.7, responseMimeType: "application/json" }
-        });
+            const prompt = `Anda ahli kurikulum Kurikulum Merdeka Indonesia. Buatkan Tujuan Pembelajaran (TP).
+Mata Pelajaran: ${identitas.mapel}
+Fase: ${identitas.fase}
+Elemen: ${elem.nama}
+Capaian Pembelajaran: ${elem.cp}
 
-        const raw = result.response.text();
-        let aiJson = JSON.parse(raw);
+INSTRUKSI:
+1. Buat MINIMAL 5 Tujuan Pembelajaran.
+2. Setiap TP mengandung KOMPETENSI (kata kerja operasional) dan KONTEN (materi).
+3. Gunakan Bahasa Indonesia baku.
+4. KELUARKAN HANYA JSON ARRAY dengan struktur persis seperti ini:
+[{"no":1,"text":"Peserta didik mampu..."},{"no":2,"text":"..."}]`;
 
-        const hasil = elemenList.map(elem => {
-            const match = Array.isArray(aiJson) && aiJson.find(item => item.elemenNama?.toLowerCase().trim() === elem.nama?.toLowerCase().trim());
-            let tp = match ? match.tujuanPembelajaran : fallbackTP(elem.nama, identitas.fase);
-            return { elemen: elem.nama, cp: elem.cp, pertemuan: elem.pertemuan, jp: elem.jp, tujuanPembelajaran: tp };
-        });
+            try {
+                const tpArray = await generateAIResponse(prompt);
+                
+                hasilATP.push({
+                    elemen: elem.nama,
+                    cp: elem.cp,
+                    jumlahPertemuan: parseInt(elem.pertemuan) || 1,
+                    jp: elem.jp,
+                    tujuanPembelajaran: Array.isArray(tpArray) ? tpArray : []
+                });
+                console.log(`✅ Berhasil: ${tpArray.length} TP dibuat untuk ${elem.nama}`);
+            } catch (elemError) {
+                console.error(`❌ Gagal pada elemen ${elem.nama}:`, elemError.message);
+                throw elemError; 
+            }
 
-        res.json({ success: true, data: hasil });
-    } catch (e) {
-        res.status(500).json({ success: false, message: e.message });
+            // Jeda 1.5 detik antar elemen untuk menghindari batas Rate Limit API
+            if (i < elemenList.length - 1) await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+
+        console.log('✅ [DONE] ATP berhasil dibuat seluruhnya!');
+        res.json({ success: true, data: hasilATP });
+
+    } catch (error) {
+        console.error('❌ [ERROR ATP]:', error.message);
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 
-// ========================================
-// 🔹 ENDPOINT RPM (STRUKTUR HTML PROFESIONAL)
-// ========================================
+// ============================================================================
+// 4. ENDPOINT: GENERATE RPM (/api/rpm)
+// ============================================================================
 app.post('/api/rpm', async (req, res) => {
     try {
-        const { identitas, praktikList, dimensiList } = req.body;
-        if (!identitas || !praktikList?.length) {
-            return res.status(400).json({ success: false, message: 'Data tidak lengkap' });
-        }
+        console.log(`\n📥 [START] Request RPM masuk`);
+        const dataRpm = req.body;
+        
+        const prompt = `Anda adalah ahli penyusunan Rencana Pelaksanaan Pembelajaran (RPM) Kurikulum Merdeka.
+Berdasarkan data berikut, buatkan detail kegiatan pembelajaran.
+Data: ${JSON.stringify(dataRpm)}
 
-        const prompt = `Anda ahli kurikulum Kurikulum Merdeka Indonesia. Buatkan RPM (Rencana Pembelajaran Mendalam) yang detail.
-
-DATA INPUT:
-- Satuan Pendidikan: ${identitas.sekolah}
-- Mapel: ${identitas.mapel} | Kelas: ${identitas.kelas} | Fase: ${identitas.fase}
-- CP: ${identitas.cp} | TP: ${identitas.tp} | Materi: ${identitas.materi}
-- Pertemuan: ${identitas.jmlPertemuan} x ${identitas.durasi}
-- Praktik Pedagogis: ${praktikList.join(', ')}
-- Dimensi Lulusan: ${dimensiList.join(', ')}
-
-OUTPUT WAJIB JSON MURNI DENGAN FORMAT STRUKTUR BERIKUT.
-PENTING: Semua value teks penjelasan WAJIB menggunakan tag HTML (<p>, <ul>, <li>, <strong>) agar tampilannya terstruktur dan rapi saat dirender di web. JANGAN gunakan markdown (** atau -).
-
+INSTRUKSI:
+1. Buat langkah-langkah kegiatan dengan jelas.
+2. KELUARKAN HANYA JSON OBJECT dengan struktur yang sesuai standar Anda.
+Contoh format output JSON yang diharapkan (bisa disesuaikan dengan struktur RPM Anda):
 {
-  "identifikasi": {
-    "murid": "<p>Deskripsi karakteristik murid...</p>",
-    "lintas_disiplin": "<p>Keterkaitan mapel lintas disiplin...</p>",
-    "topik": "<p>Topik utama pembelajaran...</p>"
-  },
-  "desain": {
-    "kemitraan": "<p>Rekomendasi kemitraan...</p>",
-    "lingkungan": "<p>Pemanfaatan lingkungan belajar...</p>",
-    "digital": "<p>Alat digital yang dipakai (Canva, Quizizz, dll)...</p>"
-  },
-  "pengalaman": {
-    "memahami": "<p><strong>Kegiatan Awal:</strong> ...</p>",
-    "mengaplikasi": "<p><strong>Kegiatan Inti:</strong> ...</p>",
-    "refleksi": "<p><strong>Kegiatan Penutup:</strong> ...</p>"
-  },
-  "asesmen": {
-    "awal": "<p>Metode asesmen diagnostik...</p>",
-    "proses": "<p>Formatif / Observasi proses...</p>",
-    "akhir": "<p>Sumatif / Produk akhir...</p>"
-  },
-  "lampiran": {
-    "materi": "<h3>A. Pengertian [Topik]</h3><p>Penjelasan...</p><h3>B. Komponen Utama</h3><ul><li>Poin 1</li></ul>",
-    "kisi_kisi": [{"no":1,"tp":"TP Terkait","indikator":"Indikator Soal","level":"L2","nomor":"1"}],
-    "kunci": "<ol><li><strong>Jawaban: A</strong><br/>Pembahasan: ...</li></ol>",
-    "rubrik": "<table class='table-professional'><thead><tr><th>Aspek Penilaian</th><th>Skor 4 (Sangat Baik)</th><th>Skor 3 (Baik)</th><th>Skor 2 (Cukup)</th><th>Skor 1 (Kurang)</th></tr></thead><tbody><tr><td><strong>Pemahaman Konsep</strong></td><td>Mampu menjelaskan secara komprehensif...</td><td>Mampu menjelaskan dengan baik...</td><td>Hanya memahami sebagian...</td><td>Belum mampu menjelaskan...</td></tr><tr><td><strong>Penerapan/Analisis</strong></td><td>Sangat akurat menganalisis...</td><td>Cukup akurat...</td><td>Kurang akurat...</td><td>Tidak mampu...</td></tr></tbody></table>"
-  }
+  "kegiatanPendahuluan": ["Berdoa", "Apersepsi"],
+  "kegiatanInti": ["Langkah 1...", "Langkah 2..."],
+  "kegiatanPenutup": ["Refleksi", "Salam"]
 }`;
 
-        let result = await model.generateContent({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.7, responseMimeType: "application/json" }
-        });
+        const hasilRpm = await generateAIResponse(prompt);
+        
+        console.log('✅ [DONE] RPM berhasil dibuat!');
+        res.json({ success: true, data: hasilRpm });
 
-        const raw = result.response.text();
-        let data = JSON.parse(raw);
-        res.json({ success: true, data: data });
-
-    } catch (e) {
-        console.error('❌ RPM Error:', e.message);
-        res.json({ success: true, data: fallbackRPM() }); // Gunakan fallback aman jika eror JSON
+    } catch (error) {
+        console.error('❌ [ERROR RPM]:', error.message);
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 
-app.get('/api/status', (req, res) => res.json({ status: 'ok', model: MODEL_NAME }));
-app.get('/atp', (req, res) => res.sendFile(path.join(__dirname, 'public', 'atp', 'index.html')));
-app.get('/rpm', (req, res) => res.sendFile(path.join(__dirname, 'public', 'rpm', 'index.html')));
-
-if (process.env.NODE_ENV !== 'production') {
-    const PORT = process.env.PORT || 3000;
-    app.listen(PORT, () => console.log(`🚀 Server di http://localhost:${PORT}`));
-}
-// HAPUS/KOMENTARI ini:
-// module.exports = app;
-
-// TAMBAHKAN ini:
+// ============================================================================
+// 5. START SERVER
+// ============================================================================
 const PORT = process.env.PORT || 3001;
-
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n🚀 Server berjalan di: http://localhost:${PORT}`);
-    console.log(`📚 Model: gemini-1.5-flash`);
-    console.log(`✅ Endpoints: /api/atp, /api/rpm, /api/status\n`);
+    console.log(`================================================`);
+    console.log(`🚀 Server berjalan di: http://localhost:${PORT}`);
+    console.log(`📚 Model Aktif: ${MODEL_NAME}`);
+    console.log(`🛡️  Status: Siap Menerima Request`);
+    console.log(`================================================\n`);
 });
